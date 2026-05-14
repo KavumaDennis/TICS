@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function hasOnlyAllowedKeys(data, allowedKeys) {
+      return data.keys().hasOnly(allowedKeys);
+    }
+
+    function isIsoString(s) {
+      // Basic sanity check (Firestore Rules cannot parse dates).
+      return s is string && s.size() >= 16;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+
+      // Client can create their own profile doc.
+      allow create: if isOwner(userId)
+        && hasOnlyAllowedKeys(request.resource.data, ['email', 'name', 'devicePushTokens', 'createdAt', 'updatedAt'])
+        && request.resource.data.email is string;
+
+      // Client can update safe fields; premium is server-controlled.
+      allow update: if isOwner(userId)
+        && !('premium' in request.resource.data)
+        && hasOnlyAllowedKeys(request.resource.data, ['email', 'name', 'devicePushTokens', 'createdAt', 'updatedAt']);
+
+      allow delete: if isOwner(userId);
+    }
+
+    match /trips/{tripId} {
+      allow read: if isOwner(resource.data.userId);
+
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.from is string
+        && request.resource.data.to is string
+        && isIsoString(request.resource.data.departureTime)
+        && isIsoString(request.resource.data.arrivalTime);
+
+      allow update: if isOwner(resource.data.userId)
+        && request.resource.data.userId == resource.data.userId; // immutable ownership
+
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    match /alerts/{alertId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if false; // created by Cloud Functions
+      // Client may only mark as read.
+      allow update: if isOwner(resource.data.userId)
+        && hasOnlyAllowedKeys(request.resource.data, ['userId', 'tripId', 'severity', 'title', 'message', 'category', 'active', 'read', 'createdAt'])
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.tripId == resource.data.tripId
+        && request.resource.data.severity == resource.data.severity
+        && request.resource.data.title == resource.data.title
+        && request.resource.data.message == resource.data.message
+        && request.resource.data.category == resource.data.category
+        && request.resource.data.active == resource.data.active
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+    }
+
+    match /recommendations/{recId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create, update, delete: if false; // created by Cloud Functions
+    }
+
+    match /transport_options/{optId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create, update, delete: if false; // created by Cloud Functions
+    }
+  }
+}

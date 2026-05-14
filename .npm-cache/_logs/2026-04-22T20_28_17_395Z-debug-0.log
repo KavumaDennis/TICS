@@ -1,0 +1,114 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.9.0
+2 info using node@v24.14.0
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\KAVUMMA DENNIS\Desktop\TICS\frontend\.npmrc
+5 silly config load:file:C:\Users\KAVUMMA DENNIS\.npmrc
+6 silly config load:file:C:\Users\KAVUMMA DENNIS\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install axios zustand expo-notifications react-native-maps
+8 verbose argv "install" "axios" "zustand" "expo-notifications" "react-native-maps"
+9 verbose logfile logs-max:10 dir:C:\Users\KAVUMMA DENNIS\Desktop\TICS\.npm-cache\_logs\2026-04-22T20_28_17_395Z-
+10 verbose logfile C:\Users\KAVUMMA DENNIS\Desktop\TICS\.npm-cache\_logs\2026-04-22T20_28_17_395Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:2348810240 maxSize:587202560 maxEntrySize:293601280
+13 silly idealTree buildDeps
+14 silly fetch manifest axios@*
+15 silly packumentCache full:https://registry.npmjs.org/axios cache-miss
+16 http fetch GET 200 https://registry.npmjs.org/axios 45388ms (cache miss)
+17 silly packumentCache full:https://registry.npmjs.org/axios set size:undefined disposed:false
+18 silly fetch manifest zustand@*
+19 silly packumentCache full:https://registry.npmjs.org/zustand cache-miss
+20 silly fetch manifest expo-notifications@*
+21 silly packumentCache full:https://registry.npmjs.org/expo-notifications cache-miss
+22 http fetch GET https://registry.npmjs.org/expo-notifications attempt 1 failed with ENETUNREACH
+23 http fetch GET https://registry.npmjs.org/expo-notifications attempt 2 failed with ENETUNREACH
+24 http fetch GET https://registry.npmjs.org/expo-notifications attempt 3 failed with ENETUNREACH
+25 silly fetch manifest react-native-maps@*
+26 silly packumentCache full:https://registry.npmjs.org/react-native-maps cache-miss
+27 http fetch GET https://registry.npmjs.org/react-native-maps attempt 1 failed with ENETUNREACH
+28 http fetch GET https://registry.npmjs.org/react-native-maps attempt 2 failed with ENETUNREACH
+29 http fetch GET 200 https://registry.npmjs.org/react-native-maps 93859ms attempt #3 (cache miss)
+30 silly packumentCache full:https://registry.npmjs.org/react-native-maps set size:undefined disposed:false
+31 silly fetch manifest react@19.1.0
+32 silly packumentCache full:https://registry.npmjs.org/react cache-miss
+33 http fetch GET 200 https://registry.npmjs.org/react 1140ms (cache revalidated)
+34 silly packumentCache full:https://registry.npmjs.org/react set size:6621771 disposed:false
+35 silly fetch manifest react-native@0.81.5
+36 silly packumentCache full:https://registry.npmjs.org/react-native cache-miss
+37 http fetch GET 200 https://registry.npmjs.org/react-native 1266ms (cache revalidated)
+38 silly packumentCache full:https://registry.npmjs.org/react-native set size:15159227 disposed:false
+39 silly fetch manifest @types/react@~19.1.0
+40 silly packumentCache full:https://registry.npmjs.org/@types%2freact cache-miss
+41 http fetch GET 200 https://registry.npmjs.org/@types%2freact 7002ms (cache revalidated)
+42 silly packumentCache full:https://registry.npmjs.org/@types%2freact set size:2588964 disposed:false
+43 silly fetch manifest react-native-web@~0.21.0
+44 silly packumentCache full:https://registry.npmjs.org/react-native-web cache-miss
+45 http fetch GET 200 https://registry.npmjs.org/react-native-web 20605ms (cache revalidated)
+46 silly packumentCache full:https://registry.npmjs.org/react-native-web set size:1090363 disposed:false
+47 silly fetch manifest react-dom@19.1.0
+48 silly packumentCache full:https://registry.npmjs.org/react-dom cache-miss
+49 http fetch GET 200 https://registry.npmjs.org/react-dom 10151ms (cache revalidated)
+50 silly packumentCache full:https://registry.npmjs.org/react-dom set size:8819255 disposed:false
+51 silly placeDep ROOT axios@1.15.2 OK for: frontend@1.0.0 want: *
+52 silly placeDep ROOT expo-notifications@ OK for: frontend@1.0.0 want: *
+53 silly placeDep ROOT react-native-maps@1.27.2 OK for: frontend@1.0.0 want: *
+54 silly placeDep ROOT zustand@ OK for: frontend@1.0.0 want: *
+55 silly fetch manifest follow-redirects@^1.15.11
+56 silly packumentCache full:https://registry.npmjs.org/follow-redirects cache-miss
+57 silly fetch manifest form-data@^4.0.5
+58 silly packumentCache full:https://registry.npmjs.org/form-data cache-miss
+59 silly fetch manifest proxy-from-env@^2.1.0
+60 silly packumentCache full:https://registry.npmjs.org/proxy-from-env cache-miss
+61 silly fetch manifest @types/geojson@^7946.0.13
+62 silly packumentCache full:https://registry.npmjs.org/@types%2fgeojson cache-miss
+63 http fetch GET 200 https://registry.npmjs.org/follow-redirects 3712ms (cache miss)
+64 silly packumentCache full:https://registry.npmjs.org/follow-redirects set size:undefined disposed:false
+65 http fetch GET https://registry.npmjs.org/proxy-from-env attempt 1 failed with ECONNRESET
+66 http fetch GET https://registry.npmjs.org/form-data attempt 1 failed with ECONNRESET
+67 http fetch GET https://registry.npmjs.org/@types%2fgeojson attempt 1 failed with ECONNRESET
+68 http fetch GET 200 https://registry.npmjs.org/@types%2fgeojson 41979ms attempt #2 (cache miss)
+69 silly packumentCache full:https://registry.npmjs.org/@types%2fgeojson set size:undefined disposed:false
+70 http fetch GET 200 https://registry.npmjs.org/proxy-from-env 49606ms attempt #2 (cache miss)
+71 silly packumentCache full:https://registry.npmjs.org/proxy-from-env set size:undefined disposed:false
+72 http fetch GET https://registry.npmjs.org/form-data attempt 2 failed with ECONNRESET
+73 http fetch GET 200 https://registry.npmjs.org/form-data 137083ms attempt #3 (cache miss)
+74 silly packumentCache full:https://registry.npmjs.org/form-data set size:undefined disposed:false
+75 silly placeDep ROOT follow-redirects@1.16.0 OK for: axios@1.15.2 want: ^1.15.11
+76 silly placeDep ROOT form-data@4.0.5 OK for: axios@1.15.2 want: ^4.0.5
+77 silly placeDep ROOT proxy-from-env@2.1.0 OK for: axios@1.15.2 want: ^2.1.0
+78 silly fetch manifest asynckit@^0.4.0
+79 silly packumentCache full:https://registry.npmjs.org/asynckit cache-miss
+80 silly fetch manifest combined-stream@^1.0.8
+81 silly packumentCache full:https://registry.npmjs.org/combined-stream cache-miss
+82 http fetch GET 200 https://registry.npmjs.org/asynckit 3227ms (cache miss)
+83 silly packumentCache full:https://registry.npmjs.org/asynckit set size:undefined disposed:false
+84 http fetch GET 200 https://registry.npmjs.org/combined-stream 6290ms (cache miss)
+85 silly packumentCache full:https://registry.npmjs.org/combined-stream set size:undefined disposed:false
+86 silly placeDep ROOT asynckit@0.4.0 OK for: form-data@4.0.5 want: ^0.4.0
+87 silly placeDep ROOT combined-stream@1.0.8 OK for: form-data@4.0.5 want: ^1.0.8
+88 silly fetch manifest delayed-stream@~1.0.0
+89 silly packumentCache full:https://registry.npmjs.org/delayed-stream cache-miss
+90 http fetch GET 200 https://registry.npmjs.org/delayed-stream 2878ms (cache miss)
+91 silly packumentCache full:https://registry.npmjs.org/delayed-stream set size:undefined disposed:false
+92 silly placeDep ROOT delayed-stream@1.0.0 OK for: combined-stream@1.0.8 want: ~1.0.0
+93 silly placeDep ROOT @types/geojson@7946.0.16 OK for: react-native-maps@1.27.2 want: ^7946.0.13
+94 verbose type system
+95 verbose stack FetchError: request to https://registry.npmjs.org/expo-notifications failed, reason: 
+95 verbose stack     at ClientRequest.<anonymous> (C:\Program Files\nodejs\node_modules\npm\node_modules\minipass-fetch\lib\index.js:130:14)
+95 verbose stack     at ClientRequest.emit (node:events:508:28)
+95 verbose stack     at emitErrorEvent (node:_http_client:108:11)
+95 verbose stack     at _destroy (node:_http_client:963:9)
+95 verbose stack     at onSocketNT (node:_http_client:983:5)
+95 verbose stack     at process.processTicksAndRejections (node:internal/process/task_queues:91:21)
+96 error code ENETUNREACH
+97 error errno ENETUNREACH
+98 error request to https://registry.npmjs.org/expo-notifications failed, reason: 
+99 silly unfinished npm timer reify 1776889700743
+100 silly unfinished npm timer reify:loadTrees 1776889700748
+101 verbose cwd C:\Users\KAVUMMA DENNIS\Desktop\TICS\frontend
+102 verbose os Windows_NT 10.0.26200
+103 verbose node v24.14.0
+104 verbose npm  v11.9.0
+105 verbose exit 1
+106 verbose code 1
+107 error A complete log of this run can be found in: C:\Users\KAVUMMA DENNIS\Desktop\TICS\.npm-cache\_logs\2026-04-22T20_28_17_395Z-debug-0.log

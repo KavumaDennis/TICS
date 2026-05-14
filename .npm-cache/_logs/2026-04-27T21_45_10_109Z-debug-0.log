@@ -1,0 +1,390 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.9.0
+2 info using node@v24.14.0
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\KAVUMMA DENNIS\Desktop\TICS\frontend\.npmrc
+5 silly config load:file:C:\Users\KAVUMMA DENNIS\.npmrc
+6 silly config load:file:C:\Users\KAVUMMA DENNIS\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install
+8 verbose argv "install"
+9 verbose logfile logs-max:10 dir:C:\Users\KAVUMMA DENNIS\Desktop\TICS\.npm-cache\_logs\2026-04-27T21_45_10_109Z-
+10 verbose logfile C:\Users\KAVUMMA DENNIS\Desktop\TICS\.npm-cache\_logs\2026-04-27T21_45_10_109Z-debug-0.log
+11 silly logfile start cleaning logs, removing 1 files
+12 silly packumentCache heap:2348810240 maxSize:587202560 maxEntrySize:293601280
+13 silly logfile done cleaning log files
+14 silly idealTree buildDeps
+15 silly fetch manifest expo-linear-gradient@~15.0.7
+16 silly packumentCache full:https://registry.npmjs.org/expo-linear-gradient cache-miss
+17 http cache https://registry.npmjs.org/expo-linear-gradient 1787ms (cache hit)
+18 silly packumentCache full:https://registry.npmjs.org/expo-linear-gradient set size:725115 disposed:false
+19 silly fetch manifest expo@~54.0.33
+20 silly packumentCache full:https://registry.npmjs.org/expo cache-miss
+21 http cache https://registry.npmjs.org/expo 68ms (cache hit)
+22 silly packumentCache full:https://registry.npmjs.org/expo set size:3655468 disposed:false
+23 silly fetch manifest @expo/dom-webview@*
+24 silly packumentCache full:https://registry.npmjs.org/@expo%2fdom-webview cache-miss
+25 http cache https://registry.npmjs.org/@expo%2fdom-webview 28ms (cache hit)
+26 silly packumentCache full:https://registry.npmjs.org/@expo%2fdom-webview set size:362165 disposed:false
+27 silly fetch manifest react@19.1.0
+28 silly packumentCache full:https://registry.npmjs.org/react cache-miss
+29 http cache https://registry.npmjs.org/react 141ms (cache hit)
+30 silly packumentCache full:https://registry.npmjs.org/react set size:6625721 disposed:false
+31 silly fetch manifest react-native@0.81.5
+32 silly packumentCache full:https://registry.npmjs.org/react-native cache-miss
+33 http cache https://registry.npmjs.org/react-native 546ms (cache hit)
+34 silly packumentCache full:https://registry.npmjs.org/react-native set size:15192164 disposed:false
+35 silly fetch manifest @types/react@~19.1.0
+36 silly packumentCache full:https://registry.npmjs.org/@types%2freact cache-miss
+37 http cache https://registry.npmjs.org/@types%2freact 47ms (cache hit)
+38 silly packumentCache full:https://registry.npmjs.org/@types%2freact set size:2588964 disposed:false
+39 silly fetch manifest @expo/metro-runtime@*
+40 silly packumentCache full:https://registry.npmjs.org/@expo%2fmetro-runtime cache-miss
+41 http cache https://registry.npmjs.org/@expo%2fmetro-runtime 35ms (cache hit)
+42 silly packumentCache full:https://registry.npmjs.org/@expo%2fmetro-runtime set size:632184 disposed:false
+43 silly fetch manifest react-dom@19.1.0
+44 silly packumentCache full:https://registry.npmjs.org/react-dom cache-miss
+45 http cache https://registry.npmjs.org/react-dom 635ms (cache hit)
+46 silly packumentCache full:https://registry.npmjs.org/react-dom set size:8826021 disposed:false
+47 silly fetch manifest react-native-webview@*
+48 silly packumentCache full:https://registry.npmjs.org/react-native-webview cache-miss
+49 http cache https://registry.npmjs.org/react-native-webview 29ms (cache hit)
+50 silly packumentCache full:https://registry.npmjs.org/react-native-webview set size:1355349 disposed:false
+51 silly fetch manifest expo-secure-store@~15.0.9
+52 silly packumentCache full:https://registry.npmjs.org/expo-secure-store cache-miss
+53 http cache https://registry.npmjs.org/expo-secure-store 23ms (cache hit)
+54 silly packumentCache full:https://registry.npmjs.org/expo-secure-store set size:678403 disposed:false
+55 silly fetch manifest nativewind@^4.1.23
+56 silly packumentCache full:https://registry.npmjs.org/nativewind cache-miss
+57 http cache https://registry.npmjs.org/nativewind 78ms (cache hit)
+58 silly packumentCache full:https://registry.npmjs.org/nativewind set size:1669729 disposed:false
+59 silly fetch manifest tailwindcss@^3.4.17
+60 silly packumentCache full:https://registry.npmjs.org/tailwindcss cache-miss
+61 http cache https://registry.npmjs.org/tailwindcss 300ms (cache hit)
+62 silly packumentCache full:https://registry.npmjs.org/tailwindcss set size:10392953 disposed:false
+63 silly placeDep ROOT expo-linear-gradient@15.0.8 OK for: frontend@1.0.0 want: ~15.0.7
+64 silly placeDep ROOT expo-secure-store@ OK for: frontend@1.0.0 want: ~15.0.9
+65 silly placeDep ROOT nativewind@4.2.3 OK for: frontend@1.0.0 want: ^4.1.23
+66 silly placeDep ROOT tailwindcss@3.4.19 OK for: nativewind@4.2.3 want: >3.3.0
+67 silly fetch manifest comment-json@^4.2.5
+68 silly packumentCache full:https://registry.npmjs.org/comment-json cache-miss
+69 silly fetch manifest react-native-css-interop@0.2.3
+70 silly packumentCache full:https://registry.npmjs.org/react-native-css-interop cache-miss
+71 silly fetch manifest dlv@^1.1.3
+72 silly packumentCache full:https://registry.npmjs.org/dlv cache-miss
+73 silly fetch manifest jiti@^1.21.7
+74 silly packumentCache full:https://registry.npmjs.org/jiti cache-miss
+75 silly fetch manifest resolve@^1.22.8
+76 silly packumentCache full:https://registry.npmjs.org/resolve cache-miss
+77 silly fetch manifest chokidar@^3.6.0
+78 silly packumentCache full:https://registry.npmjs.org/chokidar cache-miss
+79 silly fetch manifest fast-glob@^3.3.2
+80 silly packumentCache full:https://registry.npmjs.org/fast-glob cache-miss
+81 http cache https://registry.npmjs.org/react-native-css-interop 122ms (cache hit)
+82 silly packumentCache full:https://registry.npmjs.org/react-native-css-interop set size:488352 disposed:false
+83 silly fetch manifest lilconfig@^3.1.3
+84 silly packumentCache full:https://registry.npmjs.org/lilconfig cache-miss
+85 http cache https://registry.npmjs.org/dlv 154ms (cache hit)
+86 silly packumentCache full:https://registry.npmjs.org/dlv set size:16709 disposed:false
+87 silly fetch manifest didyoumean@^1.2.2
+88 silly packumentCache full:https://registry.npmjs.org/didyoumean cache-miss
+89 http cache https://registry.npmjs.org/comment-json 170ms (cache hit)
+90 silly packumentCache full:https://registry.npmjs.org/comment-json set size:185550 disposed:false
+91 silly fetch manifest postcss-js@^4.0.1
+92 silly packumentCache full:https://registry.npmjs.org/postcss-js cache-miss
+93 http cache https://registry.npmjs.org/jiti 184ms (cache hit)
+94 silly packumentCache full:https://registry.npmjs.org/jiti set size:382310 disposed:false
+95 silly fetch manifest object-hash@^3.0.0
+96 silly packumentCache full:https://registry.npmjs.org/object-hash cache-miss
+97 http cache https://registry.npmjs.org/chokidar 214ms (cache hit)
+98 silly packumentCache full:https://registry.npmjs.org/chokidar set size:255902 disposed:false
+99 silly fetch manifest postcss-import@^15.1.0
+100 silly packumentCache full:https://registry.npmjs.org/postcss-import cache-miss
+101 http cache https://registry.npmjs.org/resolve 247ms (cache hit)
+102 silly packumentCache full:https://registry.npmjs.org/resolve set size:252941 disposed:false
+103 silly fetch manifest postcss-nested@^6.2.0
+104 silly packumentCache full:https://registry.npmjs.org/postcss-nested cache-miss
+105 http cache https://registry.npmjs.org/fast-glob 272ms (cache hit)
+106 silly packumentCache full:https://registry.npmjs.org/fast-glob set size:220556 disposed:false
+107 silly fetch manifest @alloc/quick-lru@^5.2.0
+108 silly packumentCache full:https://registry.npmjs.org/@alloc%2fquick-lru cache-miss
+109 http cache https://registry.npmjs.org/lilconfig 348ms (cache hit)
+110 silly packumentCache full:https://registry.npmjs.org/lilconfig set size:45636 disposed:false
+111 silly fetch manifest postcss-load-config@^4.0.2 || ^5.0 || ^6.0
+112 silly packumentCache full:https://registry.npmjs.org/postcss-load-config cache-miss
+113 http cache https://registry.npmjs.org/didyoumean 360ms (cache hit)
+114 silly packumentCache full:https://registry.npmjs.org/didyoumean set size:11446 disposed:false
+115 silly fetch manifest postcss-selector-parser@^6.1.2
+116 silly packumentCache full:https://registry.npmjs.org/postcss-selector-parser cache-miss
+117 http cache https://registry.npmjs.org/postcss-js 359ms (cache hit)
+118 silly packumentCache full:https://registry.npmjs.org/postcss-js set size:51308 disposed:false
+119 http cache https://registry.npmjs.org/@alloc%2fquick-lru 259ms (cache hit)
+120 silly packumentCache full:https://registry.npmjs.org/@alloc%2fquick-lru set size:7269 disposed:false
+121 http cache https://registry.npmjs.org/postcss-import 318ms (cache hit)
+122 silly packumentCache full:https://registry.npmjs.org/postcss-import set size:120971 disposed:false
+123 http cache https://registry.npmjs.org/postcss-nested 317ms (cache hit)
+124 silly packumentCache full:https://registry.npmjs.org/postcss-nested set size:79120 disposed:false
+125 http cache https://registry.npmjs.org/object-hash 413ms (cache hit)
+126 silly packumentCache full:https://registry.npmjs.org/object-hash set size:100564 disposed:false
+127 http cache https://registry.npmjs.org/postcss-load-config 166ms (cache hit)
+128 silly packumentCache full:https://registry.npmjs.org/postcss-load-config set size:86425 disposed:false
+129 http cache https://registry.npmjs.org/postcss-selector-parser 161ms (cache hit)
+130 silly packumentCache full:https://registry.npmjs.org/postcss-selector-parser set size:177140 disposed:false
+131 silly fetch manifest react@>=18
+132 silly packumentCache full:https://registry.npmjs.org/react cache-miss
+133 http cache https://registry.npmjs.org/react 85ms (cache hit)
+134 silly packumentCache full:https://registry.npmjs.org/react set size:6625721 disposed:false
+135 silly fetch manifest react-native@*
+136 silly packumentCache full:https://registry.npmjs.org/react-native cache-miss
+137 http cache https://registry.npmjs.org/react-native 596ms (cache hit)
+138 silly packumentCache full:https://registry.npmjs.org/react-native set size:15192164 disposed:false
+139 silly fetch manifest @react-native/jest-preset@0.85.2
+140 silly packumentCache full:https://registry.npmjs.org/@react-native%2fjest-preset cache-miss
+141 http cache https://registry.npmjs.org/@react-native%2fjest-preset 20ms (cache hit)
+142 silly packumentCache full:https://registry.npmjs.org/@react-native%2fjest-preset set size:134309 disposed:false
+143 silly fetch manifest @types/react@^19.1.1
+144 silly packumentCache full:https://registry.npmjs.org/@types%2freact cache-miss
+145 http cache https://registry.npmjs.org/@types%2freact 120ms (cache hit)
+146 silly packumentCache full:https://registry.npmjs.org/@types%2freact set size:2588964 disposed:false
+147 silly fetch manifest react-native-reanimated@>=3.6.2
+148 silly packumentCache full:https://registry.npmjs.org/react-native-reanimated cache-miss
+149 http cache https://registry.npmjs.org/react-native-reanimated 170ms (cache hit)
+150 silly packumentCache full:https://registry.npmjs.org/react-native-reanimated set size:10666794 disposed:false
+151 silly fetch manifest react-native-worklets@0.8.x
+152 silly packumentCache full:https://registry.npmjs.org/react-native-worklets cache-miss
+153 http cache https://registry.npmjs.org/react-native-worklets 61ms (cache hit)
+154 silly packumentCache full:https://registry.npmjs.org/react-native-worklets set size:2503720 disposed:false
+155 silly fetch manifest @babel/core@*
+156 silly packumentCache full:https://registry.npmjs.org/@babel%2fcore cache-miss
+157 http cache https://registry.npmjs.org/@babel%2fcore 28ms (cache hit)
+158 silly packumentCache full:https://registry.npmjs.org/@babel%2fcore set size:760113 disposed:false
+159 silly fetch manifest @react-native/metro-config@*
+160 silly packumentCache full:https://registry.npmjs.org/@react-native%2fmetro-config cache-miss
+161 http cache https://registry.npmjs.org/@react-native%2fmetro-config 43ms (cache hit)
+162 silly packumentCache full:https://registry.npmjs.org/@react-native%2fmetro-config set size:2143178 disposed:false
+163 silly fetch manifest tailwindcss@>3.3.0
+164 silly packumentCache full:https://registry.npmjs.org/tailwindcss cache-miss
+165 http cache https://registry.npmjs.org/tailwindcss 133ms (cache hit)
+166 silly packumentCache full:https://registry.npmjs.org/tailwindcss set size:10392953 disposed:false
+167 silly fetch manifest tailwindcss@~3
+168 silly packumentCache full:https://registry.npmjs.org/tailwindcss cache-miss
+169 http cache https://registry.npmjs.org/tailwindcss 93ms (cache hit)
+170 silly packumentCache full:https://registry.npmjs.org/tailwindcss set size:10392953 disposed:false
+171 silly placeDep ROOT comment-json@4.6.2 OK for: nativewind@4.2.3 want: ^4.2.5
+172 silly placeDep ROOT react-native-css-interop@0.2.3 OK for: nativewind@4.2.3 want: 0.2.3
+173 silly fetch manifest array-timsort@^1.0.3
+174 silly packumentCache full:https://registry.npmjs.org/array-timsort cache-miss
+175 silly fetch manifest lightningcss@~1.27.0
+176 silly packumentCache full:https://registry.npmjs.org/lightningcss cache-miss
+177 silly fetch manifest semver@^7.6.3
+178 silly packumentCache full:https://registry.npmjs.org/semver cache-miss
+179 http cache https://registry.npmjs.org/array-timsort 171ms (cache hit)
+180 silly packumentCache full:https://registry.npmjs.org/array-timsort set size:21524 disposed:false
+181 http cache https://registry.npmjs.org/lightningcss 206ms (cache hit)
+182 silly packumentCache full:https://registry.npmjs.org/lightningcss set size:186753 disposed:false
+183 http cache https://registry.npmjs.org/semver 232ms (cache hit)
+184 silly packumentCache full:https://registry.npmjs.org/semver set size:229571 disposed:false
+185 silly placeDep ROOT array-timsort@1.0.3 OK for: comment-json@4.6.2 want: ^1.0.3
+186 silly placeDep node_modules/react-native-css-interop lightningcss@1.27.0 OK for: react-native-css-interop@0.2.3 want: ~1.27.0
+187 silly placeDep node_modules/react-native-css-interop semver@7.7.4 OK for: react-native-css-interop@0.2.3 want: ^7.6.3
+188 silly fetch manifest detect-libc@^1.0.3
+189 silly packumentCache full:https://registry.npmjs.org/detect-libc cache-miss
+190 silly fetch manifest lightningcss-darwin-x64@1.27.0
+191 silly packumentCache full:https://registry.npmjs.org/lightningcss-darwin-x64 cache-miss
+192 silly fetch manifest lightningcss-freebsd-x64@1.27.0
+193 silly packumentCache full:https://registry.npmjs.org/lightningcss-freebsd-x64 cache-miss
+194 silly fetch manifest lightningcss-darwin-arm64@1.27.0
+195 silly packumentCache full:https://registry.npmjs.org/lightningcss-darwin-arm64 cache-miss
+196 silly fetch manifest lightningcss-linux-x64-gnu@1.27.0
+197 silly packumentCache full:https://registry.npmjs.org/lightningcss-linux-x64-gnu cache-miss
+198 silly fetch manifest lightningcss-linux-x64-musl@1.27.0
+199 silly packumentCache full:https://registry.npmjs.org/lightningcss-linux-x64-musl cache-miss
+200 silly fetch manifest lightningcss-win32-x64-msvc@1.27.0
+201 silly packumentCache full:https://registry.npmjs.org/lightningcss-win32-x64-msvc cache-miss
+202 http cache https://registry.npmjs.org/lightningcss-darwin-arm64 355ms (cache hit)
+203 silly packumentCache full:https://registry.npmjs.org/lightningcss-darwin-arm64 set size:79276 disposed:false
+204 silly fetch manifest lightningcss-linux-arm64-gnu@1.27.0
+205 silly packumentCache full:https://registry.npmjs.org/lightningcss-linux-arm64-gnu cache-miss
+206 http cache https://registry.npmjs.org/lightningcss-linux-x64-gnu 622ms (cache hit)
+207 silly packumentCache full:https://registry.npmjs.org/lightningcss-linux-x64-gnu set size:80105 disposed:false
+208 silly fetch manifest lightningcss-linux-arm64-musl@1.27.0
+209 silly packumentCache full:https://registry.npmjs.org/lightningcss-linux-arm64-musl cache-miss
+210 http cache https://registry.npmjs.org/lightningcss-darwin-x64 752ms (cache hit)
+211 silly packumentCache full:https://registry.npmjs.org/lightningcss-darwin-x64 set size:78694 disposed:false
+212 silly fetch manifest lightningcss-win32-arm64-msvc@1.27.0
+213 silly packumentCache full:https://registry.npmjs.org/lightningcss-win32-arm64-msvc cache-miss
+214 http cache https://registry.npmjs.org/detect-libc 804ms (cache hit)
+215 silly packumentCache full:https://registry.npmjs.org/detect-libc set size:47861 disposed:false
+216 silly fetch manifest lightningcss-linux-arm-gnueabihf@1.27.0
+217 silly packumentCache full:https://registry.npmjs.org/lightningcss-linux-arm-gnueabihf cache-miss
+218 http cache https://registry.npmjs.org/lightningcss-freebsd-x64 842ms (cache hit)
+219 silly packumentCache full:https://registry.npmjs.org/lightningcss-freebsd-x64 set size:42877 disposed:false
+220 http cache https://registry.npmjs.org/lightningcss-win32-x64-msvc 827ms (cache hit)
+221 silly packumentCache full:https://registry.npmjs.org/lightningcss-win32-x64-msvc set size:79645 disposed:false
+222 http cache https://registry.npmjs.org/lightningcss-linux-x64-musl 846ms (cache hit)
+223 silly packumentCache full:https://registry.npmjs.org/lightningcss-linux-x64-musl set size:80313 disposed:false
+224 http cache https://registry.npmjs.org/lightningcss-linux-arm64-gnu 410ms (cache hit)
+225 silly packumentCache full:https://registry.npmjs.org/lightningcss-linux-arm64-gnu set size:80669 disposed:false
+226 http cache https://registry.npmjs.org/lightningcss-win32-arm64-msvc 261ms (cache hit)
+227 silly packumentCache full:https://registry.npmjs.org/lightningcss-win32-arm64-msvc set size:26629 disposed:false
+228 http cache https://registry.npmjs.org/lightningcss-linux-arm64-musl 316ms (cache hit)
+229 silly packumentCache full:https://registry.npmjs.org/lightningcss-linux-arm64-musl set size:80887 disposed:false
+230 http cache https://registry.npmjs.org/lightningcss-linux-arm-gnueabihf 224ms (cache hit)
+231 silly packumentCache full:https://registry.npmjs.org/lightningcss-linux-arm-gnueabihf set size:80903 disposed:false
+232 silly fetch manifest postcss@^8.4.47
+233 silly packumentCache full:https://registry.npmjs.org/postcss cache-miss
+234 http cache https://registry.npmjs.org/postcss 46ms (cache hit)
+235 silly packumentCache full:https://registry.npmjs.org/postcss set size:714272 disposed:false
+236 silly fetch manifest tsx@^4.8.1
+237 silly packumentCache full:https://registry.npmjs.org/tsx cache-miss
+238 http cache https://registry.npmjs.org/tsx 23ms (cache hit)
+239 silly packumentCache full:https://registry.npmjs.org/tsx set size:289592 disposed:false
+240 silly fetch manifest yaml@^2.4.2
+241 silly packumentCache full:https://registry.npmjs.org/yaml cache-miss
+242 http cache https://registry.npmjs.org/yaml 33ms (cache hit)
+243 silly packumentCache full:https://registry.npmjs.org/yaml set size:375230 disposed:false
+244 silly placeDep ROOT @alloc/quick-lru@5.2.0 OK for: tailwindcss@3.4.19 want: ^5.2.0
+245 silly placeDep ROOT chokidar@3.6.0 OK for: tailwindcss@3.4.19 want: ^3.6.0
+246 silly placeDep ROOT didyoumean@1.2.2 OK for: tailwindcss@3.4.19 want: ^1.2.2
+247 silly placeDep ROOT dlv@1.1.3 OK for: tailwindcss@3.4.19 want: ^1.1.3
+248 silly placeDep ROOT fast-glob@3.3.3 OK for: tailwindcss@3.4.19 want: ^3.3.2
+249 silly placeDep ROOT jiti@1.21.7 OK for: tailwindcss@3.4.19 want: ^1.21.7
+250 silly placeDep ROOT lilconfig@3.1.3 OK for: tailwindcss@3.4.19 want: ^3.1.3
+251 silly placeDep ROOT object-hash@3.0.0 OK for: tailwindcss@3.4.19 want: ^3.0.0
+252 silly placeDep ROOT postcss-import@15.1.0 OK for: tailwindcss@3.4.19 want: ^15.1.0
+253 silly placeDep ROOT postcss-js@4.1.0 OK for: tailwindcss@3.4.19 want: ^4.0.1
+254 silly placeDep ROOT postcss-load-config@6.0.1 OK for: tailwindcss@3.4.19 want: ^4.0.2 || ^5.0 || ^6.0
+255 silly placeDep ROOT postcss-nested@6.2.0 OK for: tailwindcss@3.4.19 want: ^6.2.0
+256 silly placeDep ROOT postcss-selector-parser@6.1.2 OK for: tailwindcss@3.4.19 want: ^6.1.2
+257 silly placeDep node_modules/tailwindcss resolve@1.22.12 OK for: tailwindcss@3.4.19 want: ^1.22.8
+258 silly fetch manifest readdirp@~3.6.0
+259 silly packumentCache full:https://registry.npmjs.org/readdirp cache-miss
+260 silly fetch manifest glob-parent@~5.1.2
+261 silly packumentCache full:https://registry.npmjs.org/glob-parent cache-miss
+262 silly fetch manifest is-binary-path@~2.1.0
+263 silly packumentCache full:https://registry.npmjs.org/is-binary-path cache-miss
+264 silly fetch manifest @nodelib/fs.stat@^2.0.2
+265 silly packumentCache full:https://registry.npmjs.org/@nodelib%2ffs.stat cache-miss
+266 silly fetch manifest @nodelib/fs.walk@^1.2.3
+267 silly packumentCache full:https://registry.npmjs.org/@nodelib%2ffs.walk cache-miss
+268 silly fetch manifest glob-parent@^5.1.2
+269 silly packumentCache full:https://registry.npmjs.org/glob-parent cache-miss
+270 silly fetch manifest merge2@^1.3.0
+271 silly packumentCache full:https://registry.npmjs.org/merge2 cache-miss
+272 http cache https://registry.npmjs.org/glob-parent 126ms (cache hit)
+273 silly packumentCache full:https://registry.npmjs.org/glob-parent set size:42445 disposed:false
+274 silly fetch manifest resolve@^1.1.7
+275 silly packumentCache full:https://registry.npmjs.org/resolve cache-hit
+276 silly fetch manifest read-cache@^1.0.0
+277 silly packumentCache full:https://registry.npmjs.org/read-cache cache-miss
+278 http cache https://registry.npmjs.org/is-binary-path 136ms (cache hit)
+279 silly packumentCache full:https://registry.npmjs.org/is-binary-path set size:13475 disposed:false
+280 silly fetch manifest camelcase-css@^2.0.1
+281 silly packumentCache full:https://registry.npmjs.org/camelcase-css cache-miss
+282 http cache https://registry.npmjs.org/readdirp 162ms (cache hit)
+283 silly packumentCache full:https://registry.npmjs.org/readdirp set size:107589 disposed:false
+284 silly fetch manifest postcss-selector-parser@^6.1.1
+285 silly packumentCache full:https://registry.npmjs.org/postcss-selector-parser cache-hit
+286 silly fetch manifest cssesc@^3.0.0
+287 silly packumentCache full:https://registry.npmjs.org/cssesc cache-miss
+288 http cache https://registry.npmjs.org/glob-parent 205ms (cache hit)
+289 silly packumentCache full:https://registry.npmjs.org/glob-parent set size:42445 disposed:false
+290 silly packumentCache full:https://registry.npmjs.org/glob-parent dispose
+291 silly fetch manifest util-deprecate@^1.0.2
+292 silly packumentCache full:https://registry.npmjs.org/util-deprecate cache-miss
+293 http cache https://registry.npmjs.org/@nodelib%2ffs.stat 253ms (cache hit)
+294 silly packumentCache full:https://registry.npmjs.org/@nodelib%2ffs.stat set size:36993 disposed:false
+295 http cache https://registry.npmjs.org/merge2 329ms (cache hit)
+296 silly packumentCache full:https://registry.npmjs.org/merge2 set size:46159 disposed:false
+297 http cache https://registry.npmjs.org/@nodelib%2ffs.walk 341ms (cache hit)
+298 silly packumentCache full:https://registry.npmjs.org/@nodelib%2ffs.walk set size:41589 disposed:false
+299 http cache https://registry.npmjs.org/camelcase-css 276ms (cache hit)
+300 silly packumentCache full:https://registry.npmjs.org/camelcase-css set size:9392 disposed:false
+301 http cache https://registry.npmjs.org/util-deprecate 198ms (cache hit)
+302 silly packumentCache full:https://registry.npmjs.org/util-deprecate set size:6674 disposed:false
+303 http cache https://registry.npmjs.org/cssesc 234ms (cache hit)
+304 silly packumentCache full:https://registry.npmjs.org/cssesc set size:18815 disposed:false
+305 http cache https://registry.npmjs.org/read-cache 306ms (cache hit)
+306 silly packumentCache full:https://registry.npmjs.org/read-cache set size:3003 disposed:false
+307 silly placeDep node_modules/chokidar glob-parent@5.1.2 OK for: chokidar@3.6.0 want: ~5.1.2
+308 silly placeDep ROOT is-binary-path@2.1.0 OK for: chokidar@3.6.0 want: ~2.1.0
+309 silly placeDep ROOT readdirp@3.6.0 OK for: chokidar@3.6.0 want: ~3.6.0
+310 silly fetch manifest binary-extensions@^2.0.0
+311 silly packumentCache full:https://registry.npmjs.org/binary-extensions cache-miss
+312 http cache https://registry.npmjs.org/binary-extensions 34ms (cache hit)
+313 silly packumentCache full:https://registry.npmjs.org/binary-extensions set size:51551 disposed:false
+314 silly placeDep ROOT @nodelib/fs.stat@2.0.5 OK for: fast-glob@3.3.3 want: ^2.0.2
+315 silly placeDep ROOT @nodelib/fs.walk@1.2.8 OK for: fast-glob@3.3.3 want: ^1.2.3
+316 silly placeDep node_modules/fast-glob glob-parent@5.1.2 OK for: fast-glob@3.3.3 want: ^5.1.2
+317 silly placeDep ROOT merge2@1.4.1 OK for: fast-glob@3.3.3 want: ^1.3.0
+318 silly fetch manifest fastq@^1.6.0
+319 silly packumentCache full:https://registry.npmjs.org/fastq cache-miss
+320 silly fetch manifest @nodelib/fs.scandir@2.1.5
+321 silly packumentCache full:https://registry.npmjs.org/@nodelib%2ffs.scandir cache-miss
+322 http cache https://registry.npmjs.org/@nodelib%2ffs.scandir 36ms (cache hit)
+323 silly packumentCache full:https://registry.npmjs.org/@nodelib%2ffs.scandir set size:49256 disposed:false
+324 http cache https://registry.npmjs.org/fastq 42ms (cache hit)
+325 silly packumentCache full:https://registry.npmjs.org/fastq set size:78301 disposed:false
+326 silly placeDep ROOT @nodelib/fs.scandir@2.1.5 OK for: @nodelib/fs.walk@1.2.8 want: 2.1.5
+327 silly placeDep ROOT fastq@1.20.1 OK for: @nodelib/fs.walk@1.2.8 want: ^1.6.0
+328 silly fetch manifest run-parallel@^1.1.9
+329 silly packumentCache full:https://registry.npmjs.org/run-parallel cache-miss
+330 silly fetch manifest reusify@^1.0.4
+331 silly packumentCache full:https://registry.npmjs.org/reusify cache-miss
+332 http cache https://registry.npmjs.org/reusify 39ms (cache hit)
+333 silly packumentCache full:https://registry.npmjs.org/reusify set size:14249 disposed:false
+334 http cache https://registry.npmjs.org/run-parallel 44ms (cache hit)
+335 silly packumentCache full:https://registry.npmjs.org/run-parallel set size:35172 disposed:false
+336 silly placeDep ROOT run-parallel@1.2.0 OK for: @nodelib/fs.scandir@2.1.5 want: ^1.1.9
+337 silly fetch manifest queue-microtask@^1.2.2
+338 silly packumentCache full:https://registry.npmjs.org/queue-microtask cache-miss
+339 http cache https://registry.npmjs.org/queue-microtask 34ms (cache hit)
+340 silly packumentCache full:https://registry.npmjs.org/queue-microtask set size:36088 disposed:false
+341 silly placeDep ROOT reusify@1.1.0 OK for: fastq@1.20.1 want: ^1.0.4
+342 silly placeDep ROOT binary-extensions@2.3.0 OK for: is-binary-path@2.1.0 want: ^2.0.0
+343 silly placeDep ROOT read-cache@1.0.0 OK for: postcss-import@15.1.0 want: ^1.0.0
+344 silly placeDep node_modules/postcss-import resolve@1.22.12 OK for: postcss-import@15.1.0 want: ^1.1.7
+345 silly fetch manifest pify@^2.3.0
+346 silly packumentCache full:https://registry.npmjs.org/pify cache-miss
+347 http cache https://registry.npmjs.org/pify 25ms (cache hit)
+348 silly packumentCache full:https://registry.npmjs.org/pify set size:33583 disposed:false
+349 silly placeDep ROOT camelcase-css@2.0.1 OK for: postcss-js@4.1.0 want: ^2.0.1
+350 silly placeDep ROOT cssesc@3.0.0 OK for: postcss-selector-parser@6.1.2 want: ^3.0.0
+351 silly placeDep ROOT util-deprecate@1.0.2 OK for: postcss-selector-parser@6.1.2 want: ^1.0.2
+352 silly placeDep ROOT pify@2.3.0 OK for: read-cache@1.0.0 want: ^2.3.0
+353 silly placeDep ROOT queue-microtask@1.2.3 OK for: run-parallel@1.2.0 want: ^1.2.2
+354 silly placeDep node_modules/react-native-css-interop detect-libc@1.0.3 OK for: lightningcss@1.27.0 want: ^1.0.3
+355 silly placeDep node_modules/react-native-css-interop lightningcss-darwin-arm64@1.27.0 OK for: lightningcss@1.27.0 want: 1.27.0
+356 silly placeDep node_modules/react-native-css-interop lightningcss-darwin-x64@1.27.0 OK for: lightningcss@1.27.0 want: 1.27.0
+357 silly placeDep node_modules/react-native-css-interop lightningcss-freebsd-x64@1.27.0 OK for: lightningcss@1.27.0 want: 1.27.0
+358 silly placeDep node_modules/react-native-css-interop lightningcss-linux-arm-gnueabihf@1.27.0 OK for: lightningcss@1.27.0 want: 1.27.0
+359 silly placeDep node_modules/react-native-css-interop lightningcss-linux-arm64-gnu@1.27.0 OK for: lightningcss@1.27.0 want: 1.27.0
+360 silly placeDep node_modules/react-native-css-interop lightningcss-linux-arm64-musl@1.27.0 OK for: lightningcss@1.27.0 want: 1.27.0
+361 silly placeDep node_modules/react-native-css-interop lightningcss-linux-x64-gnu@1.27.0 OK for: lightningcss@1.27.0 want: 1.27.0
+362 silly placeDep node_modules/react-native-css-interop lightningcss-linux-x64-musl@1.27.0 OK for: lightningcss@1.27.0 want: 1.27.0
+363 silly placeDep node_modules/react-native-css-interop lightningcss-win32-arm64-msvc@1.27.0 OK for: lightningcss@1.27.0 want: 1.27.0
+364 silly placeDep node_modules/react-native-css-interop lightningcss-win32-x64-msvc@1.27.0 OK for: lightningcss@1.27.0 want: 1.27.0
+365 verbose type range
+366 verbose stack expo-secure-store: No matching version found for expo-secure-store@~15.0.9.
+366 verbose stack     at module.exports (C:\Program Files\nodejs\node_modules\npm\node_modules\npm-pick-manifest\lib\index.js:210:23)
+366 verbose stack     at RegistryFetcher.manifest (C:\Program Files\nodejs\node_modules\npm\node_modules\pacote\lib\registry.js:130:54)
+366 verbose stack     at async #fetchManifest (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\build-ideal-tree.js:1214:20)
+366 verbose stack     at async #nodeFromEdge (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\build-ideal-tree.js:1052:19)
+366 verbose stack     at async #buildDepStep (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\build-ideal-tree.js:916:11)
+366 verbose stack     at async Arborist.buildIdealTree (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\build-ideal-tree.js:170:7)
+366 verbose stack     at async Promise.all (index 1)
+366 verbose stack     at async Arborist.reify (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\reify.js:110:5)
+366 verbose stack     at async Install.exec (C:\Program Files\nodejs\node_modules\npm\lib\commands\install.js:151:5)
+366 verbose stack     at async Npm.exec (C:\Program Files\nodejs\node_modules\npm\lib\npm.js:208:9)
+367 error code ETARGET
+368 error notarget No matching version found for expo-secure-store@~15.0.9.
+369 error notarget In most cases you or one of your dependencies are requesting
+369 error notarget a package version that doesn't exist.
+370 silly unfinished npm timer reify 1777326312048
+371 silly unfinished npm timer reify:loadTrees 1777326312050
+372 verbose cwd C:\Users\KAVUMMA DENNIS\Desktop\TICS\frontend
+373 verbose os Windows_NT 10.0.26200
+374 verbose node v24.14.0
+375 verbose npm  v11.9.0
+376 verbose exit 1
+377 verbose code 1
+378 error A complete log of this run can be found in: C:\Users\KAVUMMA DENNIS\Desktop\TICS\.npm-cache\_logs\2026-04-27T21_45_10_109Z-debug-0.log

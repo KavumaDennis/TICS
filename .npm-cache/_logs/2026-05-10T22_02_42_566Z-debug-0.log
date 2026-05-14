@@ -1,0 +1,72 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.9.0
+2 info using node@v24.14.0
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\KAVUMMA DENNIS\Desktop\TICS\frontend\.npmrc
+5 silly config load:file:C:\Users\KAVUMMA DENNIS\.npmrc
+6 silly config load:file:C:\Users\KAVUMMA DENNIS\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install
+8 verbose argv "install"
+9 verbose logfile logs-max:10 dir:C:\Users\KAVUMMA DENNIS\Desktop\TICS\.npm-cache\_logs\2026-05-10T22_02_42_566Z-
+10 verbose logfile C:\Users\KAVUMMA DENNIS\Desktop\TICS\.npm-cache\_logs\2026-05-10T22_02_42_566Z-debug-0.log
+11 silly logfile start cleaning logs, removing 1 files
+12 silly packumentCache heap:2348810240 maxSize:587202560 maxEntrySize:293601280
+13 silly logfile done cleaning log files
+14 silly idealTree buildDeps
+15 silly fetch manifest expo-apple-authentication@~15.0.0
+16 silly packumentCache full:https://registry.npmjs.org/expo-apple-authentication cache-miss
+17 http fetch GET https://registry.npmjs.org/expo-apple-authentication attempt 1 failed with EACCES
+18 http fetch GET https://registry.npmjs.org/expo-apple-authentication attempt 2 failed with EACCES
+19 http fetch GET https://registry.npmjs.org/expo-apple-authentication attempt 3 failed with EACCES
+20 silly fetch manifest expo-auth-session@~6.2.0
+21 silly packumentCache full:https://registry.npmjs.org/expo-auth-session cache-miss
+22 http fetch GET https://registry.npmjs.org/expo-auth-session attempt 1 failed with EACCES
+23 http fetch GET https://registry.npmjs.org/expo-auth-session attempt 2 failed with EACCES
+24 http fetch GET https://registry.npmjs.org/expo-auth-session attempt 3 failed with EACCES
+25 silly fetch manifest expo-crypto@~15.0.7
+26 silly packumentCache full:https://registry.npmjs.org/expo-crypto cache-miss
+27 http fetch GET https://registry.npmjs.org/expo-crypto attempt 1 failed with EACCES
+28 http fetch GET https://registry.npmjs.org/expo-crypto attempt 2 failed with EACCES
+29 http fetch GET https://registry.npmjs.org/expo-crypto attempt 3 failed with EACCES
+30 silly placeDep ROOT expo-apple-authentication@ OK for: frontend@1.0.0 want: ~15.0.0
+31 silly placeDep ROOT expo-auth-session@ OK for: frontend@1.0.0 want: ~6.2.0
+32 silly placeDep ROOT expo-crypto@ OK for: frontend@1.0.0 want: ~15.0.7
+33 verbose type system
+34 verbose stack FetchError: request to https://registry.npmjs.org/expo-apple-authentication failed, reason: 
+34 verbose stack     at ClientRequest.<anonymous> (C:\Program Files\nodejs\node_modules\npm\node_modules\minipass-fetch\lib\index.js:130:14)
+34 verbose stack     at ClientRequest.emit (node:events:508:28)
+34 verbose stack     at emitErrorEvent (node:_http_client:108:11)
+34 verbose stack     at _destroy (node:_http_client:963:9)
+34 verbose stack     at onSocketNT (node:_http_client:983:5)
+34 verbose stack     at process.processTicksAndRejections (node:internal/process/task_queues:91:21)
+35 error code EACCES
+36 error errno EACCES
+37 error FetchError: request to https://registry.npmjs.org/expo-apple-authentication failed, reason: 
+37 error     at ClientRequest.<anonymous> (C:\Program Files\nodejs\node_modules\npm\node_modules\minipass-fetch\lib\index.js:130:14)
+37 error     at ClientRequest.emit (node:events:508:28)
+37 error     at emitErrorEvent (node:_http_client:108:11)
+37 error     at _destroy (node:_http_client:963:9)
+37 error     at onSocketNT (node:_http_client:983:5)
+37 error     at process.processTicksAndRejections (node:internal/process/task_queues:91:21) {
+37 error   code: 'EACCES',
+37 error   errno: 'EACCES',
+37 error   type: 'system',
+37 error   requiredBy: '.'
+37 error }
+38 error
+38 error The operation was rejected by your operating system.
+38 error It's possible that the file was already in use (by a text editor or antivirus),
+38 error or that you lack permissions to access it.
+38 error
+38 error If you believe this might be a permissions issue, please double-check the
+38 error permissions of the file and its containing directories, or try running
+38 error the command again as root/Administrator.
+39 silly unfinished npm timer reify 1778450563361
+40 silly unfinished npm timer reify:loadTrees 1778450563362
+41 verbose cwd C:\Users\KAVUMMA DENNIS\Desktop\TICS\frontend
+42 verbose os Windows_NT 10.0.26200
+43 verbose node v24.14.0
+44 verbose npm  v11.9.0
+45 verbose exit 1
+46 verbose code 1
+47 error A complete log of this run can be found in: C:\Users\KAVUMMA DENNIS\Desktop\TICS\.npm-cache\_logs\2026-05-10T22_02_42_566Z-debug-0.log
