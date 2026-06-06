@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Firebase Emulator files
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+pubsub-debug.log
+database-debug.log
+
+# Firebase local emulator data
+firebase-export/
+.emulator-data/
+
+# Build output
+lib/
+dist/
+build/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Coverage reports
+coverage/
+
+# Local runtime config backups
+.runtimeconfig.json
+
+# Service account keys
+serviceAccountKey.json
+service-account.json
+*-service-account.json
+*.pem
+*.p12
+
+# Firebase cache
+.firebase/
+
+# Functions config files containing secrets
+secrets.local
