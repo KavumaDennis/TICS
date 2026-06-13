@@ -20,11 +20,16 @@ What runs:
 - `monitorTrips` (scheduled every 15 minutes): regenerates alerts/recommendations/transport options for upcoming trips.
 - `seedTripArtifactsOnCreate`, `syncTripOnUpdate`, `cleanupOnTripDelete`: lifecycle triggers for `trips`.
 - `notifyOnNewAlert`: sends FCM push to `users.devicePushTokens`.
-- `assistantChat` (callable): OpenAI-backed assistant for the active trip context.
+- `assistantChat` (callable): Gemini 2.0 Flash-backed AI assistant with live trip context.
 
 ### Secrets / config
-- OpenAI key for `assistantChat`:
-  - `firebase functions:secrets:set OPENAI_API_KEY`
+Set secrets via Firebase CLI (production) or `firebase/functions/.env` (emulator):
+- `GEMINI_API_KEY` — Gemini 2.0 Flash for `assistantChat`
+  - `firebase functions:secrets:set GEMINI_API_KEY`
+- `OPENWEATHER_API_KEY` — weather data for `monitorTrips` / `seedTripArtifactsOnCreate`
+  - `firebase functions:secrets:set OPENWEATHER_API_KEY`
+- `AVIATIONSTACK_API_KEY` — flight gate/terminal/delay data
+  - `firebase functions:secrets:set AVIATIONSTACK_API_KEY`
 
 ## Frontend (Expo)
 

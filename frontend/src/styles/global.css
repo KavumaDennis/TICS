@@ -1,0 +1,5 @@
+/* NativeWind requires a CSS input for web builds; native platforms ignore this file. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+

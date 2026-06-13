@@ -1,0 +1,21 @@
+# Frontend
+frontend/node_modules/
+frontend/.expo/
+frontend/.npm-cache/
+frontend/.env
+
+# IDE
+.vscode/
+frontend/.vscode/
+
+# Logs
+firebase-debug.log
+firestore-debug.log
+firebase/firebase-debug.log
+firebase/firestore-debug.log
+
+# Emulator
+emulator-data/
+
+
+.claude/

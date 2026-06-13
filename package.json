@@ -1,0 +1,21 @@
+{
+  "name": "tics",
+  "version": "1.0.0",
+  "description": "This repo is a Firebase + Expo MVP for trip tracking, alerts/recommendations generation, push notifications, and an AI assistant.",
+  "main": "index.js",
+  "scripts": {
+    "emulators": "firebase emulators:start --import=./emulator-data --export-on-exit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KavumaDennis/TICS.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/KavumaDennis/TICS/issues"
+  },
+  "homepage": "https://github.com/KavumaDennis/TICS#readme"
+}

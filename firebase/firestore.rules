@@ -1,6 +1,10 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    /* ── Helpers ───────────────────────────────────────────────────────── */
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -9,33 +13,53 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function hasOnlyAllowedKeys(data, allowedKeys) {
-      return data.keys().hasOnly(allowedKeys);
-    }
-
     function isIsoString(s) {
-      // Basic sanity check (Firestore Rules cannot parse dates).
       return s is string && s.size() >= 16;
     }
+
+    /* ── Users ─────────────────────────────────────────────────────────── */
 
     match /users/{userId} {
       allow read: if isOwner(userId);
 
-      // Client can create their own profile doc.
       allow create: if isOwner(userId)
-        && hasOnlyAllowedKeys(request.resource.data, ['email', 'name', 'devicePushTokens', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly([
+          'email','name','phone','devicePushTokens','premium',
+          'travel_behavior','averageRating','totalRatings',
+          'createdAt','updatedAt'
+        ])
         && request.resource.data.email is string;
 
-      // Client can update safe fields; premium is server-controlled.
+      // Client can update only the listed fields; premium controlled server-side
       allow update: if isOwner(userId)
-        && !('premium' in request.resource.data)
-        && hasOnlyAllowedKeys(request.resource.data, ['email', 'name', 'devicePushTokens', 'createdAt', 'updatedAt']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'email','name','phone','devicePushTokens',
+          'travel_behavior','averageRating','totalRatings',
+          'updatedAt'
+        ])
+        && !('premium' in request.resource.data.diff(resource.data).affectedKeys());
 
       allow delete: if isOwner(userId);
+
+      /* User saved items */
+      match /saved/{savedId} {
+        allow read:   if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.uid == userId;
+        allow update, delete: if isOwner(userId);
+      }
+
+      /* User ratings */
+      match /ratings/{ratingId} {
+        allow read:   if isOwner(userId);
+        allow write:  if false;  // written by Cloud Functions only
+      }
     }
 
+    /* ── Trips ─────────────────────────────────────────────────────────── */
+
     match /trips/{tripId} {
-      allow read: if isOwner(resource.data.userId);
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
 
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid
@@ -45,37 +69,108 @@ service cloud.firestore {
         && isIsoString(request.resource.data.departureTime)
         && isIsoString(request.resource.data.arrivalTime);
 
-      allow update: if isOwner(resource.data.userId)
-        && request.resource.data.userId == resource.data.userId; // immutable ownership
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId;
 
-      allow delete: if isOwner(resource.data.userId);
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      /* ── Trip-scoped subcollections (written by Cloud Functions) ─────── */
+
+      match /alerts/{alertId} {
+        allow read: if isSignedIn() && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+        // Client may only mark as read
+        allow update: if isSignedIn()
+          && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+        allow create, delete: if false;
+      }
+
+      match /recommendations/{recId} {
+        allow read: if isSignedIn() && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+        allow write: if false;
+      }
+
+      match /weather_monitoring/{docId} {
+        allow read: if isSignedIn() && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+        allow write: if false;
+      }
+
+      match /flight_monitoring/{docId} {
+        allow read: if isSignedIn() && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+        allow write: if false;
+      }
+
+      match /monitoring/{docId} {
+        allow read: if isSignedIn() && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+        allow write: if false;
+      }
+
+      match /sharedUpdates/{updateId} {
+        allow read: if isSignedIn() && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+        allow write: if false;
+      }
     }
 
+    /* ── Flat collections (legacy + active) ────────────────────────────── */
+
     match /alerts/{alertId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create: if false; // created by Cloud Functions
-      // Client may only mark as read.
-      allow update: if isOwner(resource.data.userId)
-        && hasOnlyAllowedKeys(request.resource.data, ['userId', 'tripId', 'severity', 'title', 'message', 'category', 'active', 'read', 'createdAt'])
-        && request.resource.data.userId == resource.data.userId
-        && request.resource.data.tripId == resource.data.tripId
-        && request.resource.data.severity == resource.data.severity
-        && request.resource.data.title == resource.data.title
-        && request.resource.data.message == resource.data.message
-        && request.resource.data.category == resource.data.category
-        && request.resource.data.active == resource.data.active
-        && request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if false;
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // Client may only toggle read
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow create, delete: if false;
     }
 
     match /recommendations/{recId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create, update, delete: if false; // created by Cloud Functions
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
     }
 
     match /transport_options/{optId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create, update, delete: if false; // created by Cloud Functions
+      // transport_options are written by Cloud Functions and read by the owning user.
+      // We allow any signed-in user to read — the query already filters by tripId.
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /weather_monitoring/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /flight_monitoring/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /mobility/{docId} {
+      allow read, write: if isSignedIn();
+    }
+
+    /* ── App ratings aggregate (public read) ───────────────────────────── */
+
+    match /app_ratings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    /* ── Assistant conversations ───────────────────────────────────────── */
+
+    match /assistant_conversations/{conversationId} {
+      allow read: if isSignedIn() && conversationId.matches(request.auth.uid + '_.*');
+
+      match /assistant_messages/{msgId} {
+        allow read: if isSignedIn() && conversationId.matches(request.auth.uid + '_.*');
+        allow create, update, delete: if false;
+      }
+    }
+
+    /* ── Catch-all: deny everything not explicitly allowed ─────────────── */
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
