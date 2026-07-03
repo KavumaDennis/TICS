@@ -26,8 +26,8 @@ admin.initializeApp();
 const db = admin.firestore();
 
 /* ─── Secrets ─────────────────────────────────────────────────────────────── */
-const GEMINI_API_KEY        = defineSecret('GEMINI_API_KEY');
-const OPENWEATHER_API_KEY   = defineSecret('OPENWEATHER_API_KEY');
+const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
+const OPENWEATHER_API_KEY = defineSecret('OPENWEATHER_API_KEY');
 const AVIATIONSTACK_API_KEY = defineSecret('AVIATIONSTACK_API_KEY');
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
@@ -53,6 +53,14 @@ interface TripDoc {
   arrivalTime: string;     // ISO string
   airline?: string | null;
   flightNumber?: string | null;
+  /** Centralized dynamic trip status */
+  status?: 'upcoming' | 'boarding' | 'active' | 'airborne' | 'arriving' | 'completed' | 'canceled' | 'delayed';
+  /** When the trip was marked completed */
+  completedAt?: FirebaseFirestore.FieldValue | FirebaseFirestore.Timestamp | null;
+  /** Monitoring toggle */
+  monitoringEnabled?: boolean;
+  /** Last time the status was synced */
+  lastSyncedAt?: FirebaseFirestore.FieldValue | FirebaseFirestore.Timestamp | null;
   weatherLocationFrom?: string; // "City,CC" for OpenWeather
   weatherLocationTo?: string;   // "City,CC" for OpenWeather
   departureAirport?: { airportCode: string; city: string; countryCode: string; airportName: string };
@@ -537,626 +545,6 @@ async function writeFlightMonitoringForTrip(tripId: string, trip: TripDoc): Prom
   }
 }
 
-/* ─── Dynamic Alert Engine ────────────────────────────────────────────────── */
-
-/**
- * 100+ contextually varied alert templates.
- * Picks variation by hashing tripId to avoid same message repeating for same trip.
- */
-function pickVariant(variants: string[], seed: string): string {
-  const hash = seed.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  return variants[hash % variants.length]!;
-}
-
-/**
- * Build time-based + status-based alerts dynamically from trip context.
- * Every alert uses varied wording specific to the trip, flight, and conditions.
- * No generic placeholder text. No repeated sentence structures.
- */
-function buildContextualAlerts(
-  tripId: string,
-  trip: TripDoc,
-  weather: WeatherDoc | null,
-  flight: FlightDoc | null,
-): Array<Omit<AlertDoc, 'createdAt'> & { id: string }> {
-  const { hoursToDeparture, minutesToArrival, durationHours } = computeTimeDeltas(trip);
-  const flightStr = trip.flightNumber
-    ? `${trip.airline ? trip.airline + ' ' : ''}${trip.flightNumber}`
-    : (trip.airline ?? 'your flight');
-  const origin = trip.departureAirport?.city ?? trip.from ?? 'origin';
-  const dest = trip.destinationAirport?.city ?? trip.to ?? 'destination';
-  const alerts: Array<Omit<AlertDoc, 'createdAt'> & { id: string }> = [];
-
-  // ── Monitoring active — varied wording ────────────────────────────────────
-  const monitoringMessages = [
-    `${flightStr} is now under active TICS monitoring. Expect instant alerts for gate changes, delays, and destination weather throughout your journey.`,
-    `Monitoring is live for your trip to ${dest}. TICS is tracking ${flightStr} and will alert you the moment conditions change.`,
-    `Your trip from ${origin} to ${dest} is being monitored in real time. Flight status, weather, and gate information will appear here automatically.`,
-    `TICS has activated full monitoring for ${flightStr}. You'll receive prioritized alerts for anything that could affect your journey.`,
-  ];
-  alerts.push({
-    id: `${tripId}_monitoring_active`,
-    userId: trip.userId, tripId,
-    severity: 'info', category: 'general',
-    title: `Monitoring active for ${trip.title}`,
-    message: pickVariant(monitoringMessages, tripId),
-    recommendation: 'Keep this app installed and notifications enabled for real-time updates.',
-    source: 'system', active: true, read: false,
-  });
-
-  // ── Time-bracket alerts — highly contextual ───────────────────────────────
-  if (hoursToDeparture != null) {
-
-    if (hoursToDeparture < -2 && minutesToArrival != null && minutesToArrival > 0) {
-      // In-flight
-      const minsLeft = Math.round(minutesToArrival);
-      const hLeft = Math.floor(minsLeft / 60);
-      const mLeft = minsLeft % 60;
-      const timeStr = hLeft > 0 ? `${hLeft}h ${mLeft}m` : `${mLeft}m`;
-      const inflight_msgs = [
-        `${flightStr} is currently airborne with ${timeStr} remaining to ${dest}. TICS is monitoring arrival conditions and will alert you to any changes.`,
-        `You're in the air — ${timeStr} until touchdown at ${dest}. Check the app when you land for last-mile coordination and baggage information.`,
-        `${timeStr} to ${dest}. TICS is monitoring ground transport availability, weather on approach, and airport conditions for your arrival.`,
-      ];
-      alerts.push({
-        id: `${tripId}_in_flight`,
-        userId: trip.userId, tripId,
-        severity: 'info', category: 'flight',
-        title: `${flightStr} airborne — ${timeStr} to ${dest}`,
-        message: pickVariant(inflight_msgs, tripId + 'inflight'),
-        recommendation: 'Pre-arrange airport transport now. Beat the queue by booking pickup in advance.',
-        source: 'system', active: true, read: false,
-      });
-
-    } else if (hoursToDeparture >= 0 && hoursToDeparture < 1) {
-      const minsLeft = Math.round(hoursToDeparture * 60);
-      const checkin_urgent = [
-        `Boarding for ${flightStr} begins in approximately ${minsLeft} minutes. If you're not already at the gate, proceed immediately.`,
-        `${flightStr} departs in ${minsLeft} minutes. Most airlines close boarding doors 10–15 minutes before departure. Go to the gate now.`,
-        `Final call approaching for ${flightStr}. ${minsLeft} minutes to departure from ${origin}. Gate should be your immediate priority.`,
-      ];
-      alerts.push({
-        id: `${tripId}_boarding_now`,
-        userId: trip.userId, tripId,
-        severity: 'critical', category: 'boarding',
-        title: `Board ${flightStr} now — ${minsLeft} min to departure`,
-        message: pickVariant(checkin_urgent, tripId + 'boarding'),
-        recommendation: 'Proceed to the gate immediately. Do not stop at duty-free or shops.',
-        source: 'system', active: true, read: false,
-      });
-
-    } else if (hoursToDeparture >= 1 && hoursToDeparture <= 2) {
-      const minsLeft = Math.round(hoursToDeparture * 60);
-      const checkin_msgs = [
-        `Check-in for ${flightStr} typically closes 60 minutes before departure. You have ${minsLeft} minutes. Complete check-in immediately if you haven't already.`,
-        `${minsLeft} minutes until departure of ${flightStr}. If you're still at home or en route, your options are running out. Head to the airport now.`,
-        `Online check-in for ${trip.airline ?? 'this airline'} closes in the next ${Math.round(minsLeft - 30)} minutes. Check in now and proceed directly to security.`,
-      ];
-      alerts.push({
-        id: `${tripId}_checkin_now`,
-        userId: trip.userId, tripId,
-        severity: 'warning', category: 'check_in',
-        title: `Check-in closes in ~${minsLeft} min for ${flightStr}`,
-        message: pickVariant(checkin_msgs, tripId + 'checkin'),
-        recommendation: 'Complete online check-in immediately, then head to security.',
-        source: 'system', active: true, read: false,
-      });
-
-    } else if (hoursToDeparture > 2 && hoursToDeparture <= 4) {
-      const h = Math.round(hoursToDeparture);
-      const leaveNow = Math.max(1, Math.round(hoursToDeparture) - 2);
-      const depart_msgs = [
-        `${flightStr} departs ${origin} in ${h} hours. Allow at least 2.5 hours for check-in, security, and walking to the gate. Leave in approximately ${leaveNow} hour${leaveNow === 1 ? '' : 's'}.`,
-        `Your flight to ${dest} is ${h} hours away. International airport security can take 45–90 minutes during peak hours. Factor this into your departure time.`,
-        `${h} hours until ${flightStr} departs. If you're traveling with checked luggage, arrive at ${origin} airport at least 2.5 hours early.`,
-      ];
-      alerts.push({
-        id: `${tripId}_depart_soon`,
-        userId: trip.userId, tripId,
-        severity: 'info', category: 'check_in',
-        title: `Leave for airport in ~${leaveNow}h — ${flightStr} in ${h}h`,
-        message: pickVariant(depart_msgs, tripId + 'depart'),
-        recommendation: 'Book your airport transfer now. Allow buffer time for traffic.',
-        source: 'system', active: true, read: false,
-      });
-
-    } else if (hoursToDeparture > 4 && hoursToDeparture <= 12) {
-      const h = Math.round(hoursToDeparture);
-      const tomorrow_msgs = [
-        `${flightStr} departs ${origin} in ${h} hours. Check your airline app for boarding pass availability and confirm your seat assignment.`,
-        `Your trip to ${dest} is getting close. ${flightStr} departs in ${h} hours. Verify your boarding pass, pack essentials, and confirm transport.`,
-        `${h} hours until departure. ${trip.airline ? `${trip.airline} recommends` : 'Most airlines recommend'} checking in online to secure your preferred seat.`,
-      ];
-      alerts.push({
-        id: `${tripId}_today`,
-        userId: trip.userId, tripId,
-        severity: 'info', category: 'flight',
-        title: `${flightStr} departs in ${h} hours`,
-        message: pickVariant(tomorrow_msgs, tripId + 'today'),
-        recommendation: 'Download your boarding pass and verify all travel documents.',
-        source: 'system', active: true, read: false,
-      });
-
-    } else if (hoursToDeparture > 12 && hoursToDeparture <= 24) {
-      const h = Math.round(hoursToDeparture);
-      const tonight_msgs = [
-        `${flightStr} departs tomorrow in ${h} hours. Check-in opens now for most airlines. Secure your boarding pass and preferred seat tonight.`,
-        `Your flight to ${dest} is tomorrow. ${flightStr} departs at ${new Date(trip.departureTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}. Set a departure alarm and check the airline app for any gate updates.`,
-        `${trip.title} departs in ${h} hours. Confirm your passport and documents are valid, and make sure your carry-on meets ${trip.airline ?? 'your airline'}'s size requirements.`,
-      ];
-      alerts.push({
-        id: `${tripId}_tomorrow`,
-        userId: trip.userId, tripId,
-        severity: 'info', category: 'flight',
-        title: `${flightStr} departs tomorrow`,
-        message: pickVariant(tonight_msgs, tripId + 'tomorrow'),
-        recommendation: 'Check in online tonight and confirm all documents are within reach.',
-        source: 'system', active: true, read: false,
-      });
-
-    } else if (hoursToDeparture > 24 && hoursToDeparture <= 48) {
-      const days = Math.ceil(hoursToDeparture / 24);
-      const soon_msgs = [
-        `${trip.title} is in ${days} days. ${flightStr} departs ${origin} on ${new Date(trip.departureTime).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}. TICS will begin intensive monitoring 24 hours before departure.`,
-        `${days} days until ${flightStr}. This is a good time to review your itinerary, confirm accommodation, and arrange airport transport.`,
-        `${flightStr} to ${dest} is ${days} days away. Check your passport expiry date, travel insurance, and visa requirements for ${dest} now to avoid last-minute issues.`,
-      ];
-      alerts.push({
-        id: `${tripId}_days_2`,
-        userId: trip.userId, tripId,
-        severity: 'info', category: 'general',
-        title: `${trip.title} in ${days} day${days === 1 ? '' : 's'}`,
-        message: pickVariant(soon_msgs, tripId + 'days2'),
-        recommendation: 'Confirm hotel and transport bookings. Check visa requirements.',
-        source: 'system', active: true, read: false,
-      });
-
-    } else if (hoursToDeparture > 48 && hoursToDeparture <= 120) {
-      const days = Math.ceil(hoursToDeparture / 24);
-      const upcoming_msgs = [
-        `${flightStr} from ${origin} to ${dest} is ${days} days away. TICS will activate full monitoring 48 hours before departure and send alerts for any changes.`,
-        `Your trip to ${dest} is coming up in ${days} days. Pack according to the weather forecast and ensure all important documents are accessible.`,
-        `${trip.title} is scheduled for ${new Date(trip.departureTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}. This is a good time to check if ${trip.airline ?? 'your airline'} requires anything specific for your destination.`,
-      ];
-      alerts.push({
-        id: `${tripId}_upcoming_${days}d`,
-        userId: trip.userId, tripId,
-        severity: 'info', category: 'general',
-        title: `${trip.title} — ${days} days away`,
-        message: pickVariant(upcoming_msgs, tripId + `days${days}`),
-        recommendation: 'Check entry requirements and weather forecast for your destination.',
-        source: 'system', active: true, read: false,
-      });
-
-    } else if (hoursToDeparture > 120) {
-      const days = Math.ceil(hoursToDeparture / 24);
-      alerts.push({
-        id: `${tripId}_far_upcoming`,
-        userId: trip.userId, tripId,
-        severity: 'info', category: 'general',
-        title: `Upcoming: ${trip.title} in ${days} days`,
-        message: `${flightStr} to ${dest} is scheduled for ${new Date(trip.departureTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}. TICS will begin active monitoring 5 days before departure and send real-time alerts as your trip approaches.`,
-        recommendation: 'Ensure your passport is valid for at least 6 months beyond your return date.',
-        source: 'system', active: true, read: false,
-      });
-    }
-  }
-
-  // ── Arrival imminent ───────────────────────────────────────────────────────
-  if (minutesToArrival != null && minutesToArrival >= -60 && minutesToArrival <= 30) {
-    const minsStr = minutesToArrival > 0 ? `in ${Math.round(minutesToArrival)} minutes` : 'shortly';
-    const arrival_msgs = [
-      `${flightStr} is arriving at ${dest} ${minsStr}. Prepare immigration documents, baggage claim information, and your ground transport confirmation.`,
-      `Touchdown at ${dest} ${minsStr}. Have your passport, entry declaration form (if required), and transport details ready for a smooth arrival.`,
-      `Welcome to ${dest}! ${flightStr} lands ${minsStr}. TICS will continue monitoring your ground transport once you're through customs.`,
-    ];
-    alerts.push({
-      id: `${tripId}_arrival_soon`,
-      userId: trip.userId, tripId,
-      severity: 'info', category: 'transport',
-      title: `Landing at ${dest} ${minsStr}`,
-      message: pickVariant(arrival_msgs, tripId + 'arrival'),
-      recommendation: 'Check airport information boards for baggage carousel assignment.',
-      source: 'system', active: true, read: false,
-    });
-  }
-
-  // ── At-risk status ────────────────────────────────────────────────────────
-  if (trip.monitoringStatus === 'at_risk') {
-    const atrisk_msgs = [
-      `TICS has detected elevated disruption signals for ${trip.title}. Factors may include weather, flight delays, or ground transport issues. Check all alerts carefully.`,
-      `${flightStr} has been flagged as at-risk by TICS monitoring. Review the alerts below and consider your contingency options.`,
-      `Disruption risk detected for your trip to ${dest}. TICS recommends checking with ${trip.airline ?? 'your airline'} directly and reviewing the recommendations section.`,
-    ];
-    alerts.push({
-      id: `${tripId}_at_risk`,
-      userId: trip.userId, tripId,
-      severity: 'warning', category: 'general',
-      title: `Disruption risk flagged for ${trip.title}`,
-      message: pickVariant(atrisk_msgs, tripId + 'atrisk'),
-      recommendation: 'Open the AI Assistant for a comprehensive situation analysis and alternative options.',
-      source: 'system', active: true, read: false,
-    });
-  }
-
-  // ── Long duration / overnight layover detection ────────────────────────────
-  if (durationHours != null && durationHours >= 8) {
-    const overnightId = `${tripId}_long_flight`;
-    if (durationHours >= 14) {
-      alerts.push({
-        id: overnightId,
-        userId: trip.userId, tripId,
-        severity: 'info', category: 'flight',
-        title: `Long-haul flight: ${Math.round(durationHours)}h to ${dest}`,
-        message: `${flightStr} is a ${Math.round(durationHours)}-hour long-haul flight. Consider bringing noise-canceling headphones, a neck pillow, and compression socks for comfort. Stay hydrated and move regularly.`,
-        recommendation: 'Book an aisle seat for comfort on long-haul. Consider a lounge pass for the departure airport.',
-        source: 'system', active: true, read: false,
-      });
-    } else {
-      alerts.push({
-        id: overnightId,
-        userId: trip.userId, tripId,
-        severity: 'info', category: 'flight',
-        title: `${Math.round(durationHours)}-hour flight to ${dest}`,
-        message: `Your journey from ${origin} to ${dest} takes approximately ${Math.round(durationHours)} hours. Plan meals, entertainment, and rest accordingly.`,
-        recommendation: 'Download entertainment and save offline maps of your destination.',
-        source: 'system', active: true, read: false,
-      });
-    }
-  }
-
-  return alerts;
-}
-
-async function generateAlerts(userId: string, tripId: string, trip: TripDoc, weather?: WeatherDoc | null, flight?: FlightDoc | null): Promise<void> {
-  const contextualAlerts = buildContextualAlerts(tripId, trip, weather ?? null, flight ?? null);
-
-  const batch = db.batch();
-  for (const a of contextualAlerts) {
-    const { id, ...data } = a;
-    const full: AlertDoc = { ...data, createdAt: FieldValue.serverTimestamp() };
-    // Flat collection (legacy)
-    batch.set(db.collection('alerts').doc(id), full, { merge: true });
-    // Trip-scoped subcollection
-    batch.set(db.collection('trips').doc(tripId).collection('alerts').doc(id), full, { merge: true });
-  }
-  await batch.commit();
-}
-
-/* ─── Dynamic Recommendation Engine ──────────────────────────────────────── */
-
-/**
- * Build context-aware recommendations with rich, varied content.
- * Every recommendation includes detailed explanations and is
- * specific to this trip's flight, weather, and timing conditions.
- */
-function buildContextualRecommendations(
-  tripId: string,
-  trip: TripDoc,
-  weather: WeatherDoc | null,
-  flight: FlightDoc | null,
-): Array<Omit<RecommendationDoc, 'createdAt'> & { id: string }> {
-  const { hoursToDeparture, minutesToArrival } = computeTimeDeltas(trip);
-  const recs: Array<Omit<RecommendationDoc, 'createdAt'> & { id: string }> = [];
-  const origin = trip.departureAirport?.city ?? trip.from ?? 'departure city';
-  const dest = trip.destinationAirport?.city ?? trip.to ?? 'destination';
-  const flightStr = trip.flightNumber ?? 'your flight';
-  const airline = trip.airline ?? 'your airline';
-
-  // ── Weather intelligence recommendations ──────────────────────────────────
-  if (weather) {
-    const { tempC, weatherMain, windKph, humidity, riskScore, riskSummary, description } = weather;
-
-    if (riskScore >= 7) {
-      recs.push({
-        id: `${tripId}_rec_weather_severe`,
-        userId: trip.userId, tripId,
-        kind: 'weather_advisory',
-        category: 'Weather Safety',
-        urgency: 'high',
-        confidenceScore: 0.92,
-        title: `Severe weather warning for ${dest}`,
-        message: riskSummary,
-        details: [
-          `Current conditions at ${dest}: ${description ?? weatherMain ?? 'severe'} at ${tempC != null ? Math.round(tempC) + '°C' : 'unknown temperature'}.`,
-          `Wind speed: ${windKph != null ? windKph + ' km/h' : 'N/A'}. Humidity: ${humidity ?? 'N/A'}%.`,
-          `Risk level: ${riskScore}/10 (Severe). This weather may cause flight delays, diversions, or cancellations.`,
-          `Contact ${airline} directly to confirm your flight status. Have your booking reference ready.`,
-          `TICS recommends: Check airline operational updates every 2 hours, and ensure your travel insurance covers weather-related disruptions.`,
-        ].join('\n\n'),
-        actionText: 'Check flight status',
-        actionRoute: '/assistant',
-        expiresAt: new Date(Date.now() + 6 * 3_600_000).toISOString(),
-      });
-    } else if (riskScore >= 4) {
-      const weatherRec = weatherMain?.toLowerCase();
-      let packingAdvice = 'Pack layers for variable conditions.';
-      if (weatherRec?.includes('rain') || weatherRec?.includes('drizzle')) {
-        packingAdvice = 'Pack a compact waterproof jacket and water-resistant footwear.';
-      } else if (weatherRec?.includes('snow')) {
-        packingAdvice = 'Pack a heavy winter coat, waterproof boots, and thermal layers.';
-      } else if (weatherRec?.includes('fog') || weatherRec?.includes('mist')) {
-        packingAdvice = 'Visibility may affect flights. Allow extra time at the airport.';
-      } else if (weatherRec?.includes('thunder')) {
-        packingAdvice = 'Thunderstorms can cause ground stops. Arrive at the airport early and stay near the gate.';
-      } else if (tempC != null && tempC > 35) {
-        packingAdvice = 'Extreme heat expected. Pack light, breathable clothing, high-SPF sunscreen, and stay hydrated.';
-      } else if (tempC != null && tempC < 5) {
-        packingAdvice = 'Cold conditions expected. Pack insulating layers and a waterproof outer layer.';
-      }
-
-      recs.push({
-        id: `${tripId}_rec_weather_moderate`,
-        userId: trip.userId, tripId,
-        kind: 'weather_advisory',
-        category: 'Weather Prep',
-        urgency: 'medium',
-        confidenceScore: 0.78,
-        title: `${description ? description.charAt(0).toUpperCase() + description.slice(1) : 'Adverse conditions'} expected in ${dest}`,
-        message: `${dest} is currently experiencing ${description ?? 'variable conditions'} at ${tempC != null ? Math.round(tempC) + '°C' : 'unknown temperature'}. ${riskSummary}`,
-        details: [
-          `Conditions: ${description ?? weatherMain}`,
-          `Temperature: ${tempC != null ? Math.round(tempC) + '°C' : 'N/A'} | Humidity: ${humidity ?? 'N/A'}% | Wind: ${windKph != null ? windKph + ' km/h' : 'N/A'}`,
-          `Packing recommendation: ${packingAdvice}`,
-          `Flight impact: ${riskScore >= 5 ? 'Delays possible. Monitor flight status closely.' : 'Minimal impact expected on operations.'}`,
-          `Weather risk score: ${riskScore}/10`,
-        ].join('\n\n'),
-        actionText: 'View full weather analysis',
-        expiresAt: new Date(Date.now() + 18 * 3_600_000).toISOString(),
-      });
-    } else if (riskScore <= 2 && tempC != null) {
-      // Good weather — still give useful info
-      if (tempC > 30) {
-        recs.push({
-          id: `${tripId}_rec_heat_advisory`,
-          userId: trip.userId, tripId,
-          kind: 'weather_advisory',
-          category: 'Heat Advisory',
-          urgency: 'low',
-          confidenceScore: 0.85,
-          title: `High temperatures expected in ${dest} — ${Math.round(tempC)}°C`,
-          message: `Clear skies but high heat at your destination. Temperatures in ${dest} are around ${Math.round(tempC)}°C. Pack accordingly and stay hydrated during transit.`,
-          details: `Pack light, breathable clothing. Carry a reusable water bottle. Avoid outdoor activities during peak heat (12:00–15:00). Airports and hotels are typically air-conditioned, but ground transport may not be.`,
-          actionText: 'Packing tips',
-        });
-      }
-    }
-  }
-
-  // ── Flight delay / cancellation recommendations ────────────────────────────
-  if (flight?.delayMinutes != null && flight.delayMinutes >= 30) {
-    const extraMins = flight.delayMinutes;
-    const gateInfo = flight.gate ? ` at gate ${flight.gate}` : '';
-    const realities = extraMins >= 120
-      ? `This is a significant delay of over 2 hours. Under most airline policies, you may be entitled to meal vouchers or lounge access. Contact ${airline} customer service.`
-      : extraMins >= 60
-      ? `A 60+ minute delay may impact connections or planned transport. Notify your hotel or pickup service of the revised arrival time.`
-      : `A ${extraMins}-minute delay gives you extra time at the airport. Use it to grab a meal, visit the lounge, or finalize your arrival plans.`;
-
-    recs.push({
-      id: `${tripId}_rec_delay_${flight.delayMinutes}`,
-      userId: trip.userId, tripId,
-      kind: 'time_optimization',
-      category: 'Delay Management',
-      urgency: flight.delayMinutes >= 120 ? 'high' : 'medium',
-      confidenceScore: 0.88,
-      title: `${flightStr} delayed ${extraMins} min — here's what to do`,
-      message: `${flightStr} is currently delayed by ${extraMins} minutes. New estimated departure${flight.departureActual ? ': ' + new Date(flight.departureActual).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ' TBC'}. Boarding${gateInfo} will begin approximately 30 minutes before the revised departure.`,
-      details: [
-        `Delay duration: ${extraMins} minutes`,
-        `Current flight status: ${flight.status}`,
-        realities,
-        `TICS recommendations:`,
-        `• Update your airport pickup/ground transport of the delay`,
-        `• If you have a connecting flight, contact ${airline} immediately`,
-        `• Save your booking reference: you may be entitled to compensation`,
-        extraMins >= 120 ? `• Ask the airline desk about meal vouchers and lounge access` : `• Browse duty-free or grab refreshments — you have time`,
-      ].join('\n'),
-      actionText: 'Ask AI for options',
-      actionRoute: '/assistant',
-    });
-  }
-
-  // ── Gate / terminal assigned ───────────────────────────────────────────────
-  if (flight?.gate) {
-    recs.push({
-      id: `${tripId}_rec_gate_${flight.gate}`,
-      userId: trip.userId, tripId,
-      kind: 'action',
-      category: 'Gate Information',
-      urgency: hoursToDeparture != null && hoursToDeparture <= 2 ? 'high' : 'medium',
-      confidenceScore: 0.93,
-      title: `Gate ${flight.gate}${flight.terminal ? `, Terminal ${flight.terminal}` : ''} — ${flightStr}`,
-      message: `${flightStr} is assigned to Gate ${flight.gate}${flight.terminal ? ` in Terminal ${flight.terminal}` : ''}. Boarding typically begins 30–45 minutes before departure. Verify this against the airport information boards when you arrive.`,
-      details: [
-        `Gate: ${flight.gate}${flight.terminal ? ` | Terminal: ${flight.terminal}` : ''}`,
-        `Flight status: ${flight.status.charAt(0).toUpperCase() + flight.status.slice(1)}`,
-        flight.delayMinutes ? `Current delay: ${flight.delayMinutes} minutes` : 'No delay reported',
-        `Tip: Information boards are the most reliable source. Gate assignments can change up to 2 hours before departure.`,
-        `Always check the departure board in the terminal upon arrival — do not rely solely on this app for gate information.`,
-      ].join('\n'),
-      actionText: 'View full flight details',
-    });
-  }
-
-  // ── Departure timing — specific to conditions ──────────────────────────────
-  if (hoursToDeparture != null && hoursToDeparture > 1 && hoursToDeparture <= 5) {
-    const leaveInHours = Math.max(0, Math.round(hoursToDeparture - 2.5));
-    const weatherDelay = weather?.riskScore != null && weather.riskScore >= 3
-      ? ` Current weather at ${origin} may slow road traffic — add an extra 30 minutes.`
-      : '';
-    const intl = (hoursToDeparture >= 3) ? 'For international travel, arrive 3 hours before departure. ' : '';
-
-    recs.push({
-      id: `${tripId}_rec_depart_timing`,
-      userId: trip.userId, tripId,
-      kind: 'time_optimization',
-      category: 'Departure Timing',
-      urgency: hoursToDeparture <= 2.5 ? 'high' : 'medium',
-      confidenceScore: 0.82,
-      title: leaveInHours > 0
-        ? `Leave for ${origin} airport in ~${leaveInHours}h`
-        : `Leave for ${origin} airport now`,
-      message: `${flightStr} departs in ${Math.round(hoursToDeparture)} hours. ${intl}Allow time for check-in, bag drop, and security screening.${weatherDelay}`,
-      details: [
-        `Recommended airport arrival: ${new Date(Date.parse(trip.departureTime) - 2.5 * 3_600_000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`,
-        `Departure time: ${new Date(trip.departureTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`,
-        `Estimated time budget:`,
-        `• Check-in & bag drop: 20–30 min`,
-        `• Security screening: 20–45 min (peak hours longer)`,
-        `• Walk to gate: 10–20 min`,
-        `• Buffer time: 30 min`,
-        weather?.riskScore != null && weather.riskScore >= 3 ? `• Extra weather/traffic buffer: 30 min` : '',
-      ].filter(Boolean).join('\n'),
-      actionText: 'Book transport now',
-      actionRoute: '/last-mile',
-    });
-  }
-
-  // ── Smart packing / timezone / destination tips ────────────────────────────
-  if (hoursToDeparture != null && hoursToDeparture > 24 && hoursToDeparture <= 72) {
-    // Timezone adjustment
-    recs.push({
-      id: `${tripId}_rec_prep_checklist`,
-      userId: trip.userId, tripId,
-      kind: 'smart_tip',
-      category: 'Pre-Trip Checklist',
-      urgency: 'low',
-      confidenceScore: 0.95,
-      title: `Pre-departure checklist for ${dest}`,
-      message: `${trip.title} departs in ${Math.ceil(hoursToDeparture / 24)} days. Complete these steps now to avoid last-minute stress.`,
-      details: [
-        `Before you travel to ${dest}:`,
-        `✓ Passport valid for 6+ months beyond return date`,
-        `✓ Visa or entry authorization (if required for ${dest})`,
-        `✓ Travel insurance purchased and activated`,
-        `✓ Hotel and accommodation confirmed`,
-        `✓ Airport transport to ${origin} booked`,
-        `✓ Destination currency or payment method prepared`,
-        `✓ Emergency contacts saved offline`,
-        `✓ Carry-on and checked baggage within ${airline} limits`,
-        weather ? `✓ Pack for ${weather.description ?? 'local conditions'} in ${dest}` : `✓ Check weather forecast for ${dest}`,
-        `✓ Board-required medications in carry-on with prescription`,
-      ].join('\n'),
-      actionText: 'Ask AI for destination tips',
-      actionRoute: '/assistant',
-    });
-  }
-
-  // ── Airline check-in reminder ──────────────────────────────────────────────
-  if (hoursToDeparture != null && hoursToDeparture <= 24 && hoursToDeparture > 0) {
-    recs.push({
-      id: `${tripId}_rec_online_checkin`,
-      userId: trip.userId, tripId,
-      kind: 'action',
-      category: 'Check-in',
-      urgency: hoursToDeparture <= 6 ? 'high' : 'medium',
-      confidenceScore: 0.97,
-      title: `Online check-in open for ${flightStr}`,
-      message: `Online check-in for ${airline} typically opens 24 hours before departure and closes 1 hour before departure. Check in now to secure your seat and avoid airport queues.`,
-      details: [
-        `Benefits of online check-in:`,
-        `• Seat selection (window, aisle, exit row)`,
-        `• Digital boarding pass — no printing needed`,
-        `• Faster airport processing`,
-        `• Early notification of gate information`,
-        `How: Open the ${airline} app or website. You'll need your booking reference (PNR) and passport details.`,
-      ].join('\n'),
-      actionText: 'Remind me to check in',
-    });
-  }
-
-  // ── Last-mile coordination ────────────────────────────────────────────────
-  if (minutesToArrival != null && minutesToArrival >= -60 && minutesToArrival <= 120) {
-    const transportOptions = minutesToArrival > 0
-      ? `Pre-booking ground transport now saves time when you land. ${dest} airport typically has ride-hailing, metered taxis, and airport express options available.`
-      : `You've arrived at ${dest}. Transport options are available outside the arrivals terminal.`;
-
-    recs.push({
-      id: `${tripId}_rec_lastmile_arrival`,
-      userId: trip.userId, tripId,
-      kind: 'transport',
-      category: 'Ground Transport',
-      urgency: minutesToArrival <= 30 ? 'high' : 'medium',
-      confidenceScore: 0.81,
-      title: `Arrange transport from ${dest} airport`,
-      message: `${flightStr} lands at ${dest} ${minutesToArrival > 0 ? `in ${Math.round(minutesToArrival)} minutes` : 'soon'}. ${transportOptions}`,
-      details: [
-        `Transport options at ${dest} airport:`,
-        `🚗 Ride-hailing: Uber/Bolt typically 8–15 min ETA`,
-        `🚕 Metered taxi: Available at taxi rank outside arrivals`,
-        `🚌 Airport shuttle: Fixed route, lower cost`,
-        `🚆 Airport express / public transit: Where available`,
-        `💡 Tip: Avoid unofficial taxi touts inside the terminal. Use official taxi ranks or pre-booked transport only.`,
-      ].join('\n'),
-      actionText: 'Coordinate last mile',
-      actionRoute: `/last-mile`,
-    });
-  }
-
-  // ── Always-present monitoring summary ─────────────────────────────────────
-  recs.push({
-    id: `${tripId}_rec_monitoring_summary`,
-    userId: trip.userId, tripId,
-    kind: 'smart_tip',
-    category: 'Monitoring',
-    urgency: 'low',
-    confidenceScore: 1.0,
-    title: `TICS is monitoring ${flightStr} in real time`,
-    message: `Active monitoring is enabled for your trip. Flight status from AviationStack, weather conditions from OpenWeather, and AI-generated intelligence are all tracking your journey continuously.`,
-    details: [
-      `What TICS monitors for ${trip.title}:`,
-      `✈ Flight status — gate, terminal, delays, cancellations`,
-      `🌤 Weather at ${dest} — temperature, wind, precipitation, risk score`,
-      `🚗 Ground transport — last-mile coordination on arrival`,
-      `🤖 AI insights — contextual recommendations based on real conditions`,
-      `📊 Monitoring frequency: every 15 minutes via Cloud Functions`,
-      `Tap the refresh button on any screen to force an immediate monitoring cycle.`,
-    ].join('\n'),
-    actionText: 'View monitoring dashboard',
-    actionRoute: `/monitoring/${tripId}`,
-  });
-
-  return recs;
-}
-
-async function generateRecommendations(userId: string, tripId: string, trip: TripDoc, weather?: WeatherDoc | null, flight?: FlightDoc | null): Promise<void> {
-  const recs = buildContextualRecommendations(tripId, trip, weather ?? null, flight ?? null);
-  const batch = db.batch();
-  for (const r of recs) {
-    const { id, ...data } = r;
-    const full: RecommendationDoc = { ...data, createdAt: FieldValue.serverTimestamp() };
-    batch.set(db.collection('recommendations').doc(id), full, { merge: true });
-    batch.set(db.collection('trips').doc(tripId).collection('recommendations').doc(id), full, { merge: true });
-  }
-  await batch.commit();
-}
-
-/* ─── Transport options ───────────────────────────────────────────────────── */
-
-async function generateTransportOptions(tripId: string, trip: TripDoc): Promise<void> {
-  const { minutesToArrival } = computeTimeDeltas(trip);
-  const shouldOffer = trip.lastMileStatus === 'scheduled'
-    || (minutesToArrival != null && minutesToArrival <= 180 && minutesToArrival >= -60);
-  if (!shouldOffer) return;
-
-  const dest = trip.destinationAirport?.city ?? trip.to;
-  const opts = [
-    { id: `${tripId}_ride_hailing`, title: 'Ride hailing', kind: 'ride_hailing', etaMinutes: 8, estimatedCost: '$$', status: 'available' },
-    { id: `${tripId}_taxi`, title: `Taxi at ${dest} airport`, kind: 'taxi', etaMinutes: 12, estimatedCost: '$$', status: 'available' },
-    { id: `${tripId}_public_transit`, title: 'Airport express / transit', kind: 'public_transit', etaMinutes: 25, estimatedCost: '$', status: 'available' },
-  ];
-
-  const batch = db.batch();
-  for (const opt of opts) {
-    batch.set(db.collection('transport_options').doc(opt.id), {
-      userId: trip.userId, tripId, ...opt,
-      createdAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-  }
-  await batch.commit();
-}
-
 /* ─── Trip normalization ──────────────────────────────────────────────────── */
 
 async function ensureTripSystemFields(tripId: string, before: TripDoc | null, after: TripDoc & { _synced?: boolean }): Promise<void> {
@@ -1206,16 +594,77 @@ function withConcurrency<T>(items: T[], limit: number, fn: (item: T) => Promise<
   ).then(() => undefined);
 }
 
-/* ─── Full monitoring cycle ───────────────────────────────────────────────── */
+/* ─── Full monitoring cycle (AI-only) ────────────────────────────────────── */
 
 async function runMonitoringCycle(tripId: string, trip: TripDoc): Promise<void> {
   const [weather, flight] = await Promise.all([
     writeWeatherForTrip(tripId, trip),
     writeFlightMonitoringForTrip(tripId, trip),
   ]);
-  await generateAlerts(trip.userId, tripId, trip, weather, flight);
-  await generateRecommendations(trip.userId, tripId, trip, weather, flight);
-  await generateTransportOptions(tripId, trip);
+
+  // STRICTLY AI-generated alerts and recommendations — no template fallback
+  const apiKey = GEMINI_API_KEY.value() || process.env.GEMINI_API_KEY || '';
+  if (!apiKey) {
+    logger.error(`runMonitoringCycle: GEMINI_API_KEY not configured — skipping AI generation for ${tripId}`);
+    return;
+  }
+
+  try {
+    const {
+      generateAlertsWithAI,
+      generateRecommendationsWithAI,
+      writeAIAlerts,
+      writeAIRecommendations,
+    } = await import('./aiInsights');
+
+    const tripContext = {
+      tripId,
+      userId: trip.userId,
+      title: trip.title,
+      from: trip.from,
+      to: trip.to,
+      departureTime: trip.departureTime,
+      arrivalTime: trip.arrivalTime,
+      airline: trip.airline,
+      flightNumber: trip.flightNumber,
+      status: trip.status,
+      monitoringStatus: trip.monitoringStatus,
+    };
+
+    const weatherContext = weather ? {
+      location: weather.location,
+      tempC: weather.tempC,
+      feelsLikeC: weather.feelsLikeC,
+      description: weather.description,
+      weatherMain: weather.weatherMain,
+      windKph: weather.windKph,
+      humidity: weather.humidity,
+      riskScore: weather.riskScore,
+      riskSummary: weather.riskSummary,
+    } : null;
+
+    const flightContext = flight ? {
+      status: flight.status,
+      gate: flight.gate,
+      terminal: flight.terminal,
+      delayMinutes: flight.delayMinutes,
+      departureActual: flight.departureActual,
+    } : null;
+
+    const [aiAlerts, aiRecs] = await Promise.all([
+      generateAlertsWithAI(apiKey, tripContext, weatherContext, flightContext),
+      generateRecommendationsWithAI(apiKey, tripContext, weatherContext, flightContext),
+    ]);
+
+    await writeAIAlerts(tripId, tripContext, aiAlerts);
+    await writeAIRecommendations(tripId, tripContext, aiRecs);
+
+    logger.info(`runMonitoringCycle: AI generated ${aiAlerts.length} alerts and ${aiRecs.length} recommendations for ${tripId}`);
+  } catch (e) {
+    logger.error(`runMonitoringCycle: AI generation FAILED for ${tripId} — no alerts/recommendations generated`, e);
+    // NO FALLBACK — strictly AI only
+  }
+
   // Update monitoring snapshot
   await db.collection('trips').doc(tripId).collection('monitoring').doc('latest').set({
     lastCycleAt: FieldValue.serverTimestamp(),
@@ -1348,6 +797,21 @@ export const saveItem = onCall(async (req) => {
   }, { merge: true });
 
   return { ok: true, savedId };
+});
+
+/* ─── Unsave item callable ────────────────────────────────────────────────── */
+
+export const unsaveItem = onCall(async (req) => {
+  const uid = req.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in required.');
+
+  const { itemId } = req.data as { itemId: string };
+  if (!itemId) throw new HttpsError('invalid-argument', 'itemId required.');
+
+  const savedId = `${uid}_${itemId}`;
+  await db.collection('users').doc(uid).collection('saved').doc(savedId).delete();
+
+  return { ok: true };
 });
 
 /* ─── App Rating callable ─────────────────────────────────────────────────── */
@@ -1504,6 +968,145 @@ function extractGeminiText(json: any): string {
     .trim();
 }
 
+/* ─── Auto-Completion Engine ──────────────────────────────────────────────── */
+
+const GRACE_PERIOD_MS = 45 * 60 * 1000; // 45 minutes grace period after arrival
+
+/**
+ * Scheduled cloud function that runs every 15 minutes to auto-complete trips
+ * that have passed their arrival time + grace period.
+ */
+export const autoCompleteTrips = onSchedule('every 15 minutes', async () => {
+  const now = Date.now();
+  const cutoff = new Date(now - GRACE_PERIOD_MS).toISOString();
+
+  logger.info(`autoCompleteTrips: checking for trips before ${cutoff}`);
+
+  try {
+    // Find trips where arrivalTime is past the grace period and status is not already completed/canceled
+    const tripsSnap = await db.collection('trips')
+      .where('arrivalTime', '<', cutoff)
+      .where('status', 'not-in', ['completed', 'canceled'])
+      .get();
+
+    let completed = 0;
+    const batch = db.batch();
+
+    for (const doc of tripsSnap.docs) {
+      const trip = doc.data() as TripDoc;
+      const arrMs = Date.parse(trip.arrivalTime);
+
+      if (!Number.isFinite(arrMs)) continue;
+      if (now <= arrMs + GRACE_PERIOD_MS) continue;
+
+      logger.info(`autoCompleteTrips: completing trip "${trip.title}" (${doc.id})`);
+
+      batch.update(db.collection('trips').doc(doc.id), {
+        status: 'completed',
+        monitoringEnabled: false,
+        completedAt: FieldValue.serverTimestamp(),
+        lastSyncedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      // Also update the flight_monitoring to stop listeners
+      batch.set(db.collection('flight_monitoring').doc(doc.id), {
+        status: 'landed',
+      }, { merge: true });
+
+      completed++;
+    }
+
+    if (completed > 0) {
+      await batch.commit();
+      logger.info(`autoCompleteTrips: completed ${completed} trips`);
+    } else {
+      logger.info('autoCompleteTrips: no trips to complete');
+    }
+  } catch (e) {
+    logger.error('autoCompleteTrips: error', e);
+  }
+});
+
+/**
+ * When a trip is updated, auto-complete it if arrival time + grace period has passed.
+ */
+export const onTripUpdateAutoComplete = onDocumentUpdated('trips/{tripId}', async (event) => {
+  const tripId = event.params.tripId;
+  const before = event.data?.before?.data() as TripDoc | undefined;
+  const after = event.data?.after?.data() as TripDoc | undefined;
+
+  if (!after || after.status === 'completed' || after.status === 'canceled') return;
+
+  const now = Date.now();
+  const arrMs = Date.parse(after.arrivalTime);
+
+  if (!Number.isFinite(arrMs)) return;
+  if (now <= arrMs + GRACE_PERIOD_MS) return;
+
+  logger.info(`onTripUpdateAutoComplete: auto-completing trip ${tripId}`);
+
+  await event.data?.after.ref.update({
+    status: 'completed',
+    monitoringEnabled: false,
+    completedAt: FieldValue.serverTimestamp(),
+    lastSyncedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+});
+
+/* ─── Monitoring Status Sync ──────────────────────────────────────────────── */
+
+/**
+ * When flight_monitoring gets updated, sync the trip's monitoring status
+ * and potentially auto-complete the trip if it's landed and past arrival.
+ */
+export const onFlightMonitoringUpdate = onDocumentUpdated('flight_monitoring/{tripId}', async (event) => {
+  const tripId = event.params.tripId;
+  const before = event.data?.before?.data() as FlightDoc | undefined;
+  const after = event.data?.after?.data() as FlightDoc | undefined;
+
+  if (!after) return;
+
+  // Get the trip doc
+  const tripSnap = await db.collection('trips').doc(tripId).get();
+  if (!tripSnap.exists) return;
+  const trip = tripSnap.data() as TripDoc;
+
+  // If flight has landed and trip is past arrival + grace period, auto-complete
+  if (after.status === 'landed') {
+    const now = Date.now();
+    const arrMs = Date.parse(trip.arrivalTime);
+
+    if (Number.isFinite(arrMs) && now > arrMs + GRACE_PERIOD_MS && trip.status !== 'completed' && trip.status !== 'canceled') {
+      logger.info(`onFlightMonitoringUpdate: auto-completing trip ${tripId} (flight landed)`);
+
+      await tripSnap.ref.update({
+        status: 'completed',
+        monitoringEnabled: false,
+        completedAt: FieldValue.serverTimestamp(),
+        lastSyncedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  // Sync monitoring status changes
+  if (after.status !== (before?.status ?? 'unknown')) {
+    const monitoringStatus = after.status === 'active' || after.status === 'scheduled'
+      ? 'on_track'
+      : after.status === 'canceled'
+        ? 'at_risk'
+        : 'unknown';
+
+    await tripSnap.ref.update({
+      monitoringStatus,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+});
+
+export { notifyAssignmentCreated, notifyAssignmentUpdated } from './assignmentNotifications';
 export const assistantChat = onCall({ secrets: [GEMINI_API_KEY] }, async (req) => {
   const uid = req.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in required.');
@@ -1570,31 +1173,157 @@ export const assistantChat = onCall({ secrets: [GEMINI_API_KEY] }, async (req) =
   let answer = 'I\'m having trouble connecting right now. Please try again.';
 
   if (apiKey) {
-    try {
-      const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: systemText }] },
-            contents,
-            generationConfig: { temperature: 0.7, maxOutputTokens: 512 },
-          }),
-        },
-      );
-      if (resp.ok) {
-        const json = await resp.json();
-        const extracted = extractGeminiText(json);
-        if (extracted) answer = extracted;
-      } else {
-        logger.warn(`assistantChat: Gemini ${resp.status}`);
+    // Try models in order of preference, with fallback
+    // gemini-2.0-flash-exp is the latest stable, gemini-1.5-flash is the reliable fallback
+    const modelsToTry = [
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+    ];
+
+    let lastError = '';
+
+    for (const model of modelsToTry) {
+      try {
+        const resp = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              system_instruction: { parts: [{ text: systemText }] },
+              contents,
+              generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+            }),
+          },
+        );
+
+        if (resp.ok) {
+          const json = await resp.json();
+          const extracted = extractGeminiText(json);
+          if (extracted) {
+            answer = extracted;
+            logger.info(`assistantChat: ${model} succeeded`);
+            break; // Success — stop trying fallback models
+          }
+        } else {
+          const errorText = await resp.text();
+          lastError = `${model} returned ${resp.status}: ${errorText.substring(0, 200)}`;
+          logger.warn(`assistantChat: ${lastError}`);
+          // 401/403 = auth issue, no point trying other models
+          if (resp.status === 401 || resp.status === 403) {
+            lastError = 'API key is invalid or Generative Language API is not enabled. Go to Google Cloud Console → APIs & Services → Enable "Generative Language API".';
+            break;
+          }
+          // 404 = model not found, try next
+          if (resp.status === 404) continue;
+          // Other server errors — try next model
+          if (resp.status >= 500) continue;
+          break;
+        }
+      } catch (e: any) {
+        lastError = `${model} threw: ${e?.message ?? 'Unknown error'}`;
+        logger.warn(`assistantChat: ${lastError}`);
+        continue; // Network error — try next model
       }
-    } catch (e) {
-      logger.warn('assistantChat: Gemini error', e);
     }
+
+    if (answer === 'I\'m having trouble connecting right now. Please try again.') {
+      const errorMsg = lastError || 'All Gemini models failed';
+      logger.error(`assistantChat: all models exhausted — ${errorMsg}`);
+      answer = `⚠️ ${errorMsg}. Please check that the Generative Language API is enabled in your Google Cloud Console and that your API key is valid.`;
+    }
+  } else {
+    answer = '⚠️ Gemini API key is not configured. Please set GEMINI_API_KEY in your Firebase environment or .env file.';
   }
 
   await msgCol.add({ role: 'assistant', text: answer, uid, tripId, createdAt: FieldValue.serverTimestamp() });
   return { answer, conversationId };
+});
+
+/* ─── Email Sync callable ─────────────────────────────────────────────────── */
+
+export const syncFromEmail = onCall(async (req) => {
+  const uid = req.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in required.');
+
+  const { subject, body, source, emailId } = req.data as {
+    subject: string;
+    body: string;
+    source: 'gmail' | 'outlook';
+    emailId?: string;
+  };
+
+  if (!subject || !body) {
+    throw new HttpsError('invalid-argument', 'subject and body are required.');
+  }
+
+  const { parseEmailContent, saveParsedTrip } = await import('./emailSync');
+  const parsed = parseEmailContent(subject, body, source, emailId);
+
+  if (!parsed) {
+    return { ok: false, reason: 'Could not parse travel data from this email.' };
+  }
+
+  const tripId = await saveParsedTrip(uid, parsed);
+
+  logger.info(`syncFromEmail: created trip ${tripId} for user ${uid} from ${source}`);
+
+  return {
+    ok: true,
+    tripId,
+    trip: {
+      title: parsed.title,
+      from: parsed.from,
+      to: parsed.to,
+      departureTime: parsed.departureTime,
+      arrivalTime: parsed.arrivalTime,
+      airline: parsed.airline,
+      flightNumber: parsed.flightNumber,
+    },
+  };
+});
+
+/* ─── Booking Import callable ─────────────────────────────────────────────── */
+
+export const importFromBooking = onCall(async (req) => {
+  const uid = req.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in required.');
+
+  const { subject, body, fromEmail } = req.data as {
+    subject: string;
+    body: string;
+    fromEmail?: string;
+  };
+
+  if (!subject || !body) {
+    throw new HttpsError('invalid-argument', 'subject and body are required.');
+  }
+
+  const { parseBookingConfirmation, saveBookingImport } = await import('./bookingImport');
+  const parsed = parseBookingConfirmation(subject, body, fromEmail);
+
+  if (!parsed) {
+    return { ok: false, reason: 'Could not parse booking data. Unsupported provider or missing travel details.' };
+  }
+
+  const tripId = await saveBookingImport(uid, parsed);
+
+  logger.info(`importFromBooking: created trip ${tripId} for user ${uid} from ${parsed.provider}`);
+
+  return {
+    ok: true,
+    tripId,
+    trip: {
+      title: parsed.title,
+      from: parsed.from,
+      to: parsed.to,
+      departureTime: parsed.departureTime,
+      arrivalTime: parsed.arrivalTime,
+      airline: parsed.airline,
+      flightNumber: parsed.flightNumber,
+      provider: parsed.provider,
+      hotelName: parsed.hotelName,
+      totalPrice: parsed.totalPrice,
+    },
+  };
 });

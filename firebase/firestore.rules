@@ -17,49 +17,77 @@ service cloud.firestore {
       return s is string && s.size() >= 16;
     }
 
+    function isOperator() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.keys().hasAny(['role'])
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['operator', 'admin'];
+    }
+
+    function isTravelerOfTrip(tripId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/trips/$(tripId))
+        && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+    }
+
+    function isTravelerOfAssignment(assignmentId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/assignments/$(assignmentId))
+        && get(/databases/$(database)/documents/assignments/$(assignmentId)).data.travelerId == request.auth.uid;
+    }
+
+    function ownsTrip(tripId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/trips/$(tripId))
+        && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+    }
+
     /* ── Users ─────────────────────────────────────────────────────────── */
 
     match /users/{userId} {
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || isOperator();
 
       allow create: if isOwner(userId)
         && request.resource.data.keys().hasOnly([
           'email','name','phone','devicePushTokens','premium',
           'travel_behavior','averageRating','totalRatings',
+          'role','lodgeName',
           'createdAt','updatedAt'
         ])
         && request.resource.data.email is string;
 
-      // Client can update only the listed fields; premium controlled server-side
       allow update: if isOwner(userId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'email','name','phone','devicePushTokens',
           'travel_behavior','averageRating','totalRatings',
+          'role','lodgeName',
           'updatedAt'
         ])
         && !('premium' in request.resource.data.diff(resource.data).affectedKeys());
 
       allow delete: if isOwner(userId);
 
-      /* User saved items */
       match /saved/{savedId} {
-        allow read:   if isOwner(userId);
+        allow read: if isOwner(userId);
         allow create: if isOwner(userId)
           && request.resource.data.uid == userId;
         allow update, delete: if isOwner(userId);
       }
 
-      /* User ratings */
       match /ratings/{ratingId} {
-        allow read:   if isOwner(userId);
-        allow write:  if false;  // written by Cloud Functions only
+        allow read: if isOwner(userId);
+        allow write: if false;
       }
     }
 
     /* ── Trips ─────────────────────────────────────────────────────────── */
 
     match /trips/{tripId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow read: if (
+        isSignedIn()
+        && resource.data.userId == request.auth.uid
+      ) || isOperator();
 
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid
@@ -70,70 +98,108 @@ service cloud.firestore {
         && isIsoString(request.resource.data.arrivalTime);
 
       allow update: if isSignedIn()
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == resource.data.userId;
+        && (
+          // Traveler can update their own trip
+          (resource.data.userId == request.auth.uid
+            && request.resource.data.userId == resource.data.userId)
+          // Operator can update last-mile operational fields only
+          || (isOperator()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'lastMileStatus', 'assignmentId', 'assignedDriverId', 'pickupEta', 'updatedAt'
+            ]))
+        );
 
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
 
-      /* ── Trip-scoped subcollections (written by Cloud Functions) ─────── */
+      /* ── Trip Alerts ─────────────────────────────────────────────── */
 
       match /alerts/{alertId} {
-        allow read: if isSignedIn() && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
-        // Client may only mark as read
-        allow update: if isSignedIn()
-          && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+
+        allow read: if ownsTrip(tripId) || isOperator();
+
+        allow update: if ownsTrip(tripId)
+          && request.resource.data.diff(resource.data)
+              .affectedKeys()
+              .hasOnly(['read']);
+
         allow create, delete: if false;
       }
 
+      /* ── Trip Recommendations ────────────────────────────────────── */
+
       match /recommendations/{recId} {
-        allow read: if isSignedIn() && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+        allow read: if ownsTrip(tripId) || isOperator();
         allow write: if false;
       }
+
+      /* ── Trip Weather ────────────────────────────────────────────── */
 
       match /weather_monitoring/{docId} {
-        allow read: if isSignedIn() && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+        allow read: if ownsTrip(tripId) || isOperator();
         allow write: if false;
       }
+
+      /* ── Trip Flight Monitoring ─────────────────────────────────── */
 
       match /flight_monitoring/{docId} {
-        allow read: if isSignedIn() && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+        allow read: if ownsTrip(tripId) || isOperator();
         allow write: if false;
       }
+
+      /* ── Trip Monitoring ────────────────────────────────────────── */
 
       match /monitoring/{docId} {
-        allow read: if isSignedIn() && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+        allow read: if ownsTrip(tripId) || isOperator();
         allow write: if false;
       }
 
+      /* ── Shared Updates ─────────────────────────────────────────── */
+
       match /sharedUpdates/{updateId} {
-        allow read: if isSignedIn() && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+        allow read: if ownsTrip(tripId) || isOperator();
         allow write: if false;
       }
     }
 
-    /* ── Flat collections (legacy + active) ────────────────────────────── */
+    /* ── Flat Alerts ─────────────────────────────────────────────────── */
 
     match /alerts/{alertId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      // Client may only toggle read
+
+      allow read: if (
+        isSignedIn()
+        && resource.data.userId == request.auth.uid
+      ) || isOperator();
+
       allow update: if isSignedIn()
         && resource.data.userId == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+        && request.resource.data.diff(resource.data)
+            .affectedKeys()
+            .hasOnly(['read']);
+
       allow create, delete: if false;
     }
 
+    /* ── Flat Recommendations ───────────────────────────────────────── */
+
     match /recommendations/{recId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow read: if (
+        isSignedIn()
+        && resource.data.userId == request.auth.uid
+      ) || isOperator();
+
       allow write: if false;
     }
 
+    /* ── Transport Options ──────────────────────────────────────────── */
+
     match /transport_options/{optId} {
-      // transport_options are written by Cloud Functions and read by the owning user.
-      // We allow any signed-in user to read — the query already filters by tripId.
       allow read: if isSignedIn();
       allow write: if false;
     }
+
+    /* ── Monitoring Collections ────────────────────────────────────── */
 
     match /weather_monitoring/{docId} {
       allow read: if isSignedIn();
@@ -145,29 +211,93 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    /* ── Mobility ──────────────────────────────────────────────────── */
+
     match /mobility/{docId} {
       allow read, write: if isSignedIn();
     }
 
-    /* ── App ratings aggregate (public read) ───────────────────────────── */
+    /* ── Assignments ───────────────────────────────────────────────── */
+
+    match /assignments/{assignmentId} {
+
+      allow read: if (
+        isSignedIn()
+        && resource.data.travelerId == request.auth.uid
+      ) || isOperator();
+
+      allow create: if isOperator();
+
+      allow update: if isOperator()
+        // OR the traveler who owns this assignment can update ride tracking fields
+        || (isTravelerOfAssignment(assignmentId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'status', 'driverArrivedAt', 'rideStartedAt', 'completedAt',
+              'destination', 'destinationLat', 'destinationLng',
+              'currentLat', 'currentLng', 'distanceRemaining',
+              'rideDurationSeconds', 'finalDistanceMeters',
+              'updatedAt'
+            ]));
+
+      allow delete: if false;
+    }
+
+    /* ── Drivers ───────────────────────────────────────────────────── */
+
+    match /drivers/{driverId} {
+
+      allow read: if isSignedIn();
+
+      allow write: if isOperator();
+    }
+
+    /* ── Country Images Cache (Pexels) ──────────────────────────── */
+
+    match /country_images/{countryCode} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['country', 'images', 'updatedAt'])
+        && request.resource.data.images is list
+        && request.resource.data.images.size() <= 5;
+      allow delete: if false;
+    }
+
+    /* ── Trip Pickup Preferences ─────────────────────────────────── */
+
+    match /tripPickupPreferences/{tripId} {
+      allow read: if isSignedIn()
+        && resource.data.travelerId == request.auth.uid;
+      allow create, update: if isSignedIn()
+        && request.resource.data.travelerId == request.auth.uid
+        && request.resource.data.tripId == tripId
+        && request.resource.data.keys().hasOnly(['tripId', 'travelerId', 'pickupLocation', 'dropoffLocation', 'driverNotes', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    /* ── App Ratings ──────────────────────────────────────────────── */
 
     match /app_ratings/{docId} {
       allow read: if isSignedIn();
       allow write: if false;
     }
 
-    /* ── Assistant conversations ───────────────────────────────────────── */
+    /* ── Assistant Conversations ─────────────────────────────────── */
 
     match /assistant_conversations/{conversationId} {
-      allow read: if isSignedIn() && conversationId.matches(request.auth.uid + '_.*');
+
+      allow read: if isSignedIn()
+        && conversationId.matches(request.auth.uid + '_.*');
 
       match /assistant_messages/{msgId} {
-        allow read: if isSignedIn() && conversationId.matches(request.auth.uid + '_.*');
+
+        allow read: if isSignedIn()
+          && conversationId.matches(request.auth.uid + '_.*');
+
         allow create, update, delete: if false;
       }
     }
 
-    /* ── Catch-all: deny everything not explicitly allowed ─────────────── */
+    /* ── Catch All ────────────────────────────────────────────────── */
 
     match /{document=**} {
       allow read, write: if false;

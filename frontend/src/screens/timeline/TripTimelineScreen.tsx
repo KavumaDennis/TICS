@@ -8,6 +8,8 @@ import PersistentTabBar from '@/src/components/PersistentTabBar';
 import { useTripStore } from '@/src/store/tripStore';
 import { useFlightMonitoringStore } from '@/src/store/flightMonitoringStore';
 import { useWeatherStore } from '@/src/store/weatherStore';
+import { useTripStatus } from '@/src/hooks/useTripStatus';
+import { STATUS_META } from '@/src/utils/tripStatus';
 
 /* ─── Types ─────────────────────────────────────────── */
 
@@ -187,6 +189,10 @@ export default function TripTimelineScreen() {
     [tripId, trips]
   );
 
+  // Trip status awareness
+  const { isCompleted, isCancelled, statusInfo } = useTripStatus(trip);
+  const isCompletedOrCancelled = isCompleted || isCancelled;
+
   const flight = useFlightMonitoringStore((s) => (trip ? s.byTripId[trip.id] ?? null : null));
   const weather = useWeatherStore((s) => (trip ? s.byTripId[trip.id] ?? null : null));
 
@@ -204,24 +210,24 @@ export default function TripTimelineScreen() {
     // If trip has a saved timeline array, use it as base
     const savedTimeline = Array.isArray(trip?.timeline) && trip!.timeline.length > 0
       ? trip!.timeline
-          .filter((t: any) => typeof t?.at === 'string' && typeof t?.label === 'string')
-          .map((t: any) => {
-            const kind = inferKind(String(t.kind ?? ''), String(t.label));
-            const style = STEP_STYLE[kind];
-            return {
-              key: `${t.at}_${t.kind ?? 'item'}`,
-              kind,
-              time: fmt(new Date(t.at)),
-              title: String(t.label),
-              meta: String(t.kind ?? 'timeline'),
-              tag: style.defaultTag,
-              tagColor: style.tagColor,
-              tagBg: style.tagBg,
-              iconColor: style.iconColor,
-              iconBg: style.iconBg,
-              connectorColor: style.connectorColor,
-            } as TimelineStep;
-          })
+        .filter((t: any) => typeof t?.at === 'string' && typeof t?.label === 'string')
+        .map((t: any) => {
+          const kind = inferKind(String(t.kind ?? ''), String(t.label));
+          const style = STEP_STYLE[kind];
+          return {
+            key: `${t.at}_${t.kind ?? 'item'}`,
+            kind,
+            time: fmt(new Date(t.at)),
+            title: String(t.label),
+            meta: String(t.kind ?? 'timeline'),
+            tag: style.defaultTag,
+            tagColor: style.tagColor,
+            tagBg: style.tagBg,
+            iconColor: style.iconColor,
+            iconBg: style.iconBg,
+            connectorColor: style.connectorColor,
+          } as TimelineStep;
+        })
       : null;
 
     if (savedTimeline) return savedTimeline;
@@ -385,22 +391,45 @@ export default function TripTimelineScreen() {
       connectorColor: 'rgba(168,85,247,0.3)',
     });
 
+    // Trip completed (only for completed trips)
+    if (isCompletedOrCancelled) {
+      const completedTime = arr ? addMinutes(arr, 60) : (dep ? addMinutes(dep, 240) : new Date());
+      const completedTitle = isCompleted ? 'Trip complete' : 'Trip cancelled';
+      const completedMeta = isCompleted
+        ? 'All trip phases completed successfully'
+        : 'This trip was cancelled';
+      result.push({
+        key: 'completed',
+        kind: 'generic',
+        time: fmt(completedTime),
+        title: completedTitle,
+        meta: completedMeta,
+        tag: isCompleted ? 'Completed ✓' : 'Cancelled ✗',
+        tagColor: '#64748B',
+        tagBg: 'rgba(100,116,139,0.12)',
+        iconColor: '#64748B',
+        iconBg: 'rgba(100,116,139,0.15)',
+        connectorColor: 'rgba(100,116,139,0.2)',
+      });
+    }
+
     return result;
-  }, [trip, flight, weather, dep, arr]);
+  }, [trip, flight, weather, dep, arr, isCompletedOrCancelled, isCompleted]);
 
   /* ── Render ──────────────────────────────────────────── */
   return (
     <View className="flex-1 pt-10">
       {/* Header */}
-      <View className="pb-3 px-2 border-b border-[#96C7B3]/50 pt-3">
+      <View className="p-2 flex-row items-center gap-3 bg-tics-amber/25 border border-tics-amber/10 rounded-full">
         <Pressable
           onPress={() => router.back()}
-          className="h-11 w-11 items-center justify-center rounded-xl border border-[#96C7B3]/50 bg-white/[0.06]"
+          style={{ height: 46, width: 46 }}
+          className="items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full"
         >
           <Ionicons name="chevron-back" size={20} color="rgba(248,250,252,0.9)" />
         </Pressable>
-        <View className="mt-3">
-          <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-text text-[22px]">
+        <View className="">
+          <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-text text-[17px]">
             Trip Timeline
           </Text>
           <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-1 text-tics-muted text-[12px]">
@@ -460,12 +489,11 @@ export default function TripTimelineScreen() {
 
               {/* Right: card */}
               <View className="flex-1" style={{ paddingBottom: isLast ? 0 : 16 }}>
-                <View 
-                className='border border-[#96C7B3]/50 bg-white/[0.06]'
-                style={{
-                  borderRadius: 14,
-                  overflow: 'hidden',
-                }}>
+                <View
+                  className='border border-[#96C7B3]/50 bg-white/[0.06] rounded-3xl'
+                  style={{
+                    overflow: 'hidden',
+                  }}>
                   {/* Left accent stripe */}
                   <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: step.iconColor }} />
                   <View style={{ paddingLeft: 14, paddingRight: 12, paddingVertical: 12 }}>
@@ -504,9 +532,9 @@ export default function TripTimelineScreen() {
         {/* Last-mile CTA */}
         <Pressable
           onPress={() => trip && router.push(({ pathname: `/last-mile/${trip.id}` } as any))}
-          className="mt-4 rounded-2xl bg-tics-amber px-6 py-4"
+          className="mt-4 bg-tics-amber/35 border border-tics-amber/20 rounded-full p-6"
         >
-          <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-center text-[13px] text-black">
+          <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-center text-[13px] text-tics-text">
             Open Last-Mile Coordination
           </Text>
         </Pressable>

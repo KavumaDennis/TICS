@@ -6,6 +6,7 @@ import Fontisto from '@expo/vector-icons/Fontisto';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
+import * as AuthSession from 'expo-auth-session';
 import { GoogleAuthProvider, OAuthProvider } from 'firebase/auth';
 
 import Card from '@/src/components/Card';
@@ -18,21 +19,43 @@ function isValidEmail(email: string) {
 }
 
 function hasGoogleClientIdForPlatform() {
+  // Platform-specific IDs are preferred, but the web client ID works as a default fallback
+  // across all platforms with Expo's Google auth proxy.
   if (Platform.OS === 'web') return Boolean(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID);
-  if (Platform.OS === 'ios') return Boolean(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID);
-  if (Platform.OS === 'android') return Boolean(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID);
+  if (Platform.OS === 'ios') {
+    return Boolean(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID) || Boolean(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID);
+  }
+  if (Platform.OS === 'android') {
+    return Boolean(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID) || Boolean(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID);
+  }
   return false;
+}
+
+// Fallback client ID resolution: platform-specific ID takes priority, web client ID as fallback
+function getClientIdForPlatform() {
+  if (Platform.OS === 'ios') {
+    return process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  }
+  if (Platform.OS === 'android') {
+    return process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  }
+  return process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 }
 
 function GoogleSignInButton({ onError, onSuccess }: { onError: (m: string) => void; onSuccess: () => void }) {
   const { loginWithFirebaseCredential, loading } = useAuthStore();
 
+  // Generate redirect URI for development build using app scheme
+  const redirectUri = AuthSession.makeRedirectUri({
+    scheme: 'tics',
+  });
+  console.log('[Google Auth] Redirect URI:', redirectUri);
+
   const [googleRequest, , promptGoogle] = Google.useAuthRequest({
-    responseType: 'id_token',
     scopes: ['profile', 'email', 'openid'],
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || undefined,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || undefined,
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
   });
 
@@ -56,9 +79,9 @@ function GoogleSignInButton({ onError, onSuccess }: { onError: (m: string) => vo
       onPress={handleGoogle}
       className={`flex-1 ${loading || !googleRequest ? 'opacity-60' : ''}`}
     >
-      <View className="flex-row items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] px-4 py-4 gap-2">
+      <View className="flex-row items-center justify-center rounded-full border border-white/15 bg-white/[0.06] p-6 gap-2">
         <Ionicons name="logo-google" size={18} color="#EF4444" />
-        <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-[13px] text-tics-text">Google</Text>
+        <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-[13px] text-tics-text">Continue with Google</Text>
       </View>
     </Pressable>
   );
@@ -120,26 +143,32 @@ export default function RegisterScreen() {
   }
 
   return (
-    <View className="flex-1 px-5 pt-14">
+    <View className="flex-1 px-2 pt-10">
       {/* Header */}
-      <View className="flex-row items-center gap-3">
+      <View className='flex-row items-center gap-3 p-2 bg-tics-amber/35 border border-tics-amber/20 rounded-full'>
         <Pressable
-          onPress={() => router.back()}
-          className="h-11 w-11 items-center justify-center rounded-xl border border-[#96C7B3]/50 bg-white/[0.06]"
+          onPress={() => router.replace('/home')}
           accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <Ionicons name="chevron-back" size={22} color="rgba(248,250,252,0.9)" />
+          accessibilityLabel="Go to Home"
+          style={{ width: 46, height: 46 }}
+          className="items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full">
+          <Ionicons name="home-outline" size={22} color="rgba(248,250,252,0.9)" />
         </Pressable>
-        <View className="flex-row items-center gap-3">
-          <View className="rounded-xl h-11 w-11 justify-center items-center border border-white/10 bg-tics-blue">
+        <View className='flex-row items-center gap-3'>
+          <View
+            style={{ width: 46, height: 46 }}
+            className='rounded-full justify-center items-center self-start bg-tics-amber/35 border border-tics-amber/20'>
             <Fontisto name="plane" size={17} color="white" />
           </View>
-          <Text style={{ fontFamily: 'Syne_700Bold' }} className="uppercase text-tics-text text-xl">TICS</Text>
+          <Text
+            style={{
+              fontFamily: 'Syne_700Bold',
+            }}
+            className='uppercase text-tics-text text-xl'>TICS</Text>
         </View>
       </View>
 
-      <View className="mt-8">
+      <View className="mt-3 ml-2">
         <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 24 }} className="text-tics-amber tracking-tight">Create Account</Text>
         <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="mt-1 text-tics-muted text-[13px] leading-5">{"Let's get you started."}</Text>
       </View>
@@ -148,7 +177,7 @@ export default function RegisterScreen() {
         <ImageSlider />
 
         {/* Form */}
-        <View className="mt-5 gap-3">
+        <View className="gap-3">
           <TextInput
             style={{ fontFamily: 'Syne_700Bold' }}
             value={name}
@@ -156,7 +185,7 @@ export default function RegisterScreen() {
             autoCapitalize="words"
             placeholder="Full Name"
             placeholderTextColor="rgba(248,250,252,0.32)"
-            className="px-4 py-4 rounded-xl border border-[#96C7B3]/50 bg-white/[0.06] text-tics-text"
+            className="px-4 py-5 rounded-full border border-[#96C7B3]/50 bg-white/[0.06] text-tics-text"
           />
 
           <TextInput
@@ -168,11 +197,11 @@ export default function RegisterScreen() {
             keyboardType="email-address"
             placeholder="Email Address"
             placeholderTextColor="rgba(248,250,252,0.32)"
-            className="px-4 py-4 rounded-xl border border-[#96C7B3]/50 bg-white/[0.06] text-tics-text"
+            className="px-4 py-5 rounded-full border border-[#96C7B3]/50 bg-white/[0.06] text-tics-text"
           />
 
           <View
-            className="p-1 rounded-xl border border-[#96C7B3]/50 bg-white/[0.06]"
+            className="p-2 rounded-full border border-[#96C7B3]/50 bg-white/[0.06]"
           >
             <View className="flex-row items-center">
               <TextInput
@@ -188,8 +217,7 @@ export default function RegisterScreen() {
               />
               <Pressable
                 onPress={() => setShowPassword((v) => !v)}
-                style={{ borderRadius: 8 }}
-                className="ml-2 h-10 w-10 items-center justify-center bg-[#96C7B3]/50"
+                className="ml-2 h-11 w-11 rounded-full items-center justify-center bg-[#96C7B3]/50"
               >
                 <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={18} color="rgba(248,250,252,0.85)" />
               </Pressable>
@@ -206,9 +234,9 @@ export default function RegisterScreen() {
         <Pressable
           disabled={loading}
           onPress={onSubmit}
-          className={`items-center justify-center py-4 bg-tics-amber rounded-2xl ${loading ? 'mt-5 opacity-60' : 'mt-5'}`}
+          className={`items-center justify-center py-6 bg-tics-amber/35 border border-tics-amber/20 rounded-full ${loading ? 'mt-5 opacity-60' : 'mt-5'}`}
         >
-          <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-[14px] text-black">
+          <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-[14px] text-tics-text">
             {loading ? 'Creating…' : 'Create Account'}
           </Text>
         </Pressable>
@@ -229,20 +257,23 @@ export default function RegisterScreen() {
             />
           ) : (
             <Pressable className="flex-1">
-              <View className="flex-row items-center justify-center rounded-full border border-[#96C7B3]/50 bg-white/[0.06] px-4 py-4 gap-2">
+              <View className="flex-row items-center justify-center rounded-full border border-[#96C7B3]/50 bg-white/[0.06] p-6 gap-2">
                 <Ionicons name="logo-google" size={18} color="#EF4444" />
-                <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-[13px] text-tics-text">Google</Text>
+                <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-[13px] text-tics-text">Continue with Google</Text>
               </View>
             </Pressable>
           )}
 
           {Platform.OS === 'ios' ? (
-            <Pressable className="flex-1" disabled={loading} onPress={onApple}>
-              <View className={`flex-row items-center justify-center rounded-full border border-[#96C7B3]/50 bg-white/[0.06] px-4 py-4 gap-2 ${loading ? 'opacity-60' : ''}`}>
-                <Ionicons name="logo-apple" size={18} color="#000000" />
-                <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-[13px] text-black">Apple</Text>
-              </View>
-            </Pressable>
+            <View className="flex-1" style={{ opacity: loading ? 0.6 : 1 }}>
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                cornerRadius={16}
+                style={{ height: 52, width: '100%' }}
+                onPress={onApple}
+              />
+            </View>
           ) : (
             <>
             </>

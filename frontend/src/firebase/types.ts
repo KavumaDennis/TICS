@@ -30,8 +30,17 @@ export type TripDoc = {
   airline?: string;
   flightNumber?: string;
 
+  /** Centralized dynamic trip status */
+  status?: 'upcoming' | 'boarding' | 'active' | 'airborne' | 'arriving' | 'completed' | 'canceled' | 'delayed';
+  /** When the trip was marked completed */
+  completedAt?: any;
+  /** Monitoring toggle */
+  monitoringEnabled?: boolean;
+  /** Last time the status was synced */
+  lastSyncedAt?: any;
+
   monitoringStatus?: 'on_track' | 'at_risk' | 'unknown';
-  lastMileStatus?: 'scheduled' | 'none' | 'in_progress' | 'completed';
+  lastMileStatus?: 'scheduled' | 'none' | 'in_progress' | 'completed' | 'assigned' | 'pending';
 
   monitoring?: {
     enabled?: boolean;
@@ -51,6 +60,29 @@ export type TripDoc = {
     lat?: number;
     lng?: number;
   }>;
+
+  /** Booking reference / PNR from email sync or booking import */
+  bookingReference?: string;
+  /** Confirmation number from booking providers */
+  confirmationNumber?: string;
+  /** Booking provider name (Expedia, Booking.com, etc.) */
+  bookingProvider?: string;
+  /** Booking provider type */
+  bookingProviderType?: string;
+  /** Hotel name (from hotel bookings) */
+  hotelName?: string;
+  /** Number of passengers */
+  passengers?: number;
+  /** Total price paid */
+  totalPrice?: string;
+  /** Whether this trip was imported from a booking confirmation */
+  _bookingImport?: boolean;
+  /** Source provider for booking import */
+  _bookingImportSource?: string;
+  /** Email sync source (gmail/outlook) */
+  _emailSyncSource?: string;
+  /** Email sync message ID */
+  _emailSyncId?: string;
 
   createdAt?: any;
   updatedAt?: any;

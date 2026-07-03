@@ -96,6 +96,23 @@
         { "fieldPath": "tripId",    "order": "ASCENDING"  },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "assignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "travelerId",    "order": "ASCENDING"  },
+        { "fieldPath": "tripId",        "order": "ASCENDING"  },
+        { "fieldPath": "createdAt",     "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "assignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tripId",        "order": "ASCENDING"  },
+        { "fieldPath": "status",        "order": "ASCENDING"  }
+      ]
     }
   ],
   "fieldOverrides": []

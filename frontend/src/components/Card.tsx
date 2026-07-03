@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import { View } from 'react-native';
 
-export type CardAccent = 'none' | 'blue' | 'red' | 'green' | 'purple';
+export type CardAccent = 'none' | 'blue' | 'red' | 'green' | 'purple' | 'amber' | 'teal' | 'gray';
 
 type Props = PropsWithChildren<{
   className?: string;
@@ -14,6 +14,9 @@ const ACCENT: Record<CardAccent, string> = {
   red: 'border-[#ef4444]/40 bg-white/[0.06]',
   green: 'border-[#22c55e]/38 bg-white/[0.06]',
   purple: 'border-[#8b5cf6]/42 bg-white/[0.06]',
+  amber: 'border-[#f59e0b]/35 bg-white/[0.06]',
+  teal: 'border-[#14b8a6]/35 bg-white/[0.06]',
+  gray: 'border-gray-400/35 bg-white/[0.06]',
 };
 
 export default function Card({ children, className, accent = 'none' }: Props) {

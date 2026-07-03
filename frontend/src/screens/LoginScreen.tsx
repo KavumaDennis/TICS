@@ -8,9 +8,12 @@ import { Platform } from 'react-native';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
+import * as AuthSession from 'expo-auth-session';
 import { GoogleAuthProvider, OAuthProvider } from 'firebase/auth';
+import * as WebBrowser from 'expo-web-browser';
 
-import ScreenBackground from '@/src/components/ScreenBackground';
+WebBrowser.maybeCompleteAuthSession();
+
 import Card from '@/src/components/Card';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { base64Encode } from '@/src/utils/base64';
@@ -21,21 +24,51 @@ function isValidEmail(email: string) {
 }
 
 function hasGoogleClientIdForPlatform() {
+  // Platform-specific IDs are preferred, but the web client ID works as a default fallback
+  // across all platforms with Expo's Google auth proxy.
   if (Platform.OS === 'web') return Boolean(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID);
-  if (Platform.OS === 'ios') return Boolean(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID);
-  if (Platform.OS === 'android') return Boolean(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID);
+  // For iOS and Android, the native ID is preferred. If not set, fall back to the web client ID
+  // which will use Expo's auth proxy for Google sign-in.
+  if (Platform.OS === 'ios') {
+    return Boolean(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID) || Boolean(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID);
+  }
+  if (Platform.OS === 'android') {
+    return Boolean(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID) || Boolean(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID);
+  }
   return false;
 }
+
+// Fallback client ID resolution: platform-specific ID takes priority, web client ID as fallback
+function getClientIdForPlatform() {
+  if (Platform.OS === 'ios') {
+    return process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  }
+  if (Platform.OS === 'android') {
+    return process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  }
+  return process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+}
+
+console.log({
+  web: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+  ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+});
 
 function GoogleButton({ onError, onSuccess }: { onError: (msg: string) => void; onSuccess: () => void }) {
   const { loginWithFirebaseCredential, loading } = useAuthStore();
 
+  // Generate redirect URI for development build using app scheme
+  const redirectUri = AuthSession.makeRedirectUri({
+    scheme: 'tics',
+  });
+  console.log('[Google Auth] Redirect URI:', redirectUri);
+
   const [googleRequest, , promptGoogle] = Google.useAuthRequest({
-    responseType: 'id_token',
     scopes: ['profile', 'email', 'openid'],
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || undefined,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || undefined,
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
   });
 
@@ -60,9 +93,9 @@ function GoogleButton({ onError, onSuccess }: { onError: (msg: string) => void; 
       onPress={onGoogle}
       className={loading || !googleRequest ? 'opacity-60' : undefined}
     >
-      <View className="flex-row items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-4">
-        <Ionicons name="logo-google" size={18} color="rgba(248,250,252,0.9)" />
-        <Text className="ml-2 text-[13px] font-extrabold text-tics-text">Continue with Google</Text>
+      <View className="flex-row items-center justify-center rounded-full border border-white/15 bg-white/[0.06] p-6">
+        <Ionicons name="logo-google" size={18} color="#EF4444" />
+        <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="ml-2 text-[13px] text-tics-text">Continue with Google</Text>
       </View>
     </Pressable>
   );
@@ -124,20 +157,20 @@ export default function LoginScreen() {
 
   return (
 
-    <View className="flex-1 px-5 pt-14">
-      <View className='flex-row items-center gap-3'>
+    <View className="flex-1 px-2 pt-10">
+      <View className='flex-row items-center gap-3 p-2 bg-tics-amber/35 border border-tics-amber/20 rounded-full'>
         <Pressable
           onPress={() => router.replace('/home')}
-          className="h-11 w-11 items-center justify-center rounded-xl border border-[#96C7B3]/50 bg-white/[0.06]"
           accessibilityRole="button"
           accessibilityLabel="Go to Home"
-        >
+          style={{ width: 46, height: 46 }}
+          className="items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full">
           <Ionicons name="home-outline" size={22} color="rgba(248,250,252,0.9)" />
         </Pressable>
         <View className='flex-row items-center gap-3'>
           <View
-            style={{
-            }} className='rounded-xl justify-center items-center self-start h-11 w-11 border border-white/10 bg-tics-blue'>
+            style={{ width: 46, height: 46 }}
+            className='rounded-full justify-center items-center self-start bg-tics-amber/35 border border-tics-amber/20'>
             <Fontisto name="plane" size={17} color="white" />
           </View>
           <Text
@@ -149,12 +182,12 @@ export default function LoginScreen() {
       </View>
 
 
-      <View className="mt-10">
+      <View className="mt-3">
 
-        <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[24px]">
+        <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber ml-2 text-[24px]">
           Welcome to,
         </Text>
-        <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="mt-2 text-tics-text text-[12px]">
+        <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="mt-2 ml-2 text-tics-text text-[12px]">
           Travel Intelligence & Coordination System
         </Text>
       </View>
@@ -162,15 +195,15 @@ export default function LoginScreen() {
       <ImageSlider />
 
       <Card accent="blue" className="">
-        <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[24px]">Login</Text>
-        <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="mt-1 text-tics-muted text-[12px]">Use your email and password to continue.</Text>
+        <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber ml-2 text-[24px]">Login</Text>
+        <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="mt-1 ml-2 text-tics-muted text-[12px]">Use your email and password to continue.</Text>
 
         <View className="mt-5 gap-3">
           <View className="">
 
             <TextInput
               style={{
-                fontFamily: 'Syne_700Bold', 
+                fontFamily: 'Syne_700Bold',
               }}
               value={email}
               onChangeText={setEmail}
@@ -179,14 +212,14 @@ export default function LoginScreen() {
               keyboardType="email-address"
               placeholder="you@example.com"
               placeholderTextColor="rgba(248,250,252,0.32)"
-              className="mt-1 rounded-xl border border-[#96C7B3]/50 bg-white/[0.06] px-4 py-4 text-tics-text"
+              className="mt-1 rounded-full border border-[#96C7B3]/50 bg-white/[0.06] px-4 py-5 text-tics-text"
             />
           </View>
 
 
           <View
-           
-            className="mt-1 rounded-xl border border-[#96C7B3]/50 bg-white/[0.06] p-1 flex-row items-center">
+
+            className="mt-1 rounded-full border border-[#96C7B3]/50 bg-white/[0.06] p-2 flex-row items-center">
             <TextInput
               style={{
                 fontFamily: 'Syne_700Bold',
@@ -203,10 +236,10 @@ export default function LoginScreen() {
             />
             <Pressable
               style={{
-                borderRadius: 8,
+                width: 40, height: 40,
               }}
               onPress={() => setShowPassword((v) => !v)}
-              className="ml-2 h-10 w-10 items-center justify-center bg-[#96C7B3]/50"
+              className="ml-2 rounded-full items-center justify-center bg-[#96C7B3]/50"
             >
               <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={18} color="rgba(248,250,252,0.85)" />
             </Pressable>
@@ -220,8 +253,8 @@ export default function LoginScreen() {
 
 
 
-        <Pressable disabled={loading} onPress={onSubmit} className={`items-center justify-center py-4 bg-tics-amber rounded-2xl ${loading ? 'mt-5 opacity-60' : 'mt-5 '}`}>
-          <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-[14px] text-black">{loading ? 'Signing in…' : 'Login'}</Text>
+        <Pressable disabled={loading} onPress={onSubmit} className={`items-center justify-center py-6 bg-tics-amber/35 border border-tics-amber/20 rounded-full ${loading ? 'mt-5 opacity-60' : 'mt-5 '}`}>
+          <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-[14px] text-tics-text">{loading ? 'Signing in…' : 'Login'}</Text>
         </Pressable>
 
         <View className="mt-5 gap-3">

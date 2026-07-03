@@ -44,25 +44,18 @@ export default function PersistentTabBar() {
   };
 
   return (
-    <View
-      style={{
-        paddingBottom: Math.max(10, insets.bottom),
-        paddingTop: 10,
-      }}
-      className="px-4 mt-auto flex-row items-center justify-between border-t border-[#96C7B3]/25  bg-[#0a0b1e]"
+    <View 
+      className="p-2 mt-auto flex-row items-center justify-between rounded-full bg-tics-amber/25 border border-tics-amber/10 shadow-lg"
     >
       {tabs.map((t) => {
         const focused = isActive(t);
-        const color = focused ? '#8B5CF6' : 'rgba(248,250,252,0.55)';
+        const color = focused ? '#fff' : 'rgba(248,250,252,0.55)';
         return (
-          <Pressable key={t.key} onPress={() => router.navigate(t.href as any)} className="items-center justify-center px-3 py-1 active:opacity-90">
+          <Pressable key={t.key} onPress={() => router.navigate(t.href as any)} className={`${focused ? "bg-tics-amber/35" : ""} border border-tics-amber/20 shadow-lg items-center justify-center rounded-full p-5 active:opacity-90`}>
             <View>
               {icon(t.key, focused, color)}
               {t.key === 'alerts' && unreadAlerts > 0 ? <View className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-tics-red" /> : null}
             </View>
-            <Text style={{ fontFamily: 'Syne_700Bold', color }} className="mt-1 text-[10px]">
-              {t.label}
-            </Text>
           </Pressable>
         );
       })}

@@ -26,8 +26,11 @@ import PersistentTabBar from '@/src/components/PersistentTabBar';
 import { useTripStore } from '@/src/store/tripStore';
 import { useWeatherStore } from '@/src/store/weatherStore';
 import { useFlightMonitoringStore } from '@/src/store/flightMonitoringStore';
+import { useAssistantStore } from '@/src/store/assistantStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { useTripStatus } from '@/src/hooks/useTripStatus';
 import { refreshTripMonitoring, generateShareUpdate } from '@/src/firebase/callables';
+import { useAlertModal } from '@/src/components/AlertModal';
 
 type TabKey = 'overview' | 'flight' | 'connections';
 
@@ -52,7 +55,7 @@ function formatMins(mins: number): string {
 
 function InfoRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
-    <View className="flex-row items-center justify-between rounded-xl border border-[#96C7B3]/50 bg-white/[0.06] px-4 py-4">
+    <View className="flex-row items-center justify-between rounded-full border border-[#96C7B3]/50 bg-white/[0.06] p-5">
       <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px]">
         {label}
       </Text>
@@ -90,7 +93,7 @@ function WeatherRiskBar({ score }: { score: number }) {
         <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px]">Weather risk</Text>
         <Text style={{ fontFamily: 'Syne_700Bold', color, fontSize: 11 }}>{label} ({score}/10)</Text>
       </View>
-      <View className="h-2 rounded-full bg-white/10 overflow-hidden">
+      <View className="h-2 rounded-full bg-white/10 border border-tics-amber/10 overflow-hidden">
         <View style={{ width: `${score * 10}%`, height: '100%', backgroundColor: color, borderRadius: 99 }} />
       </View>
     </View>
@@ -106,6 +109,7 @@ export default function TravelMonitoringScreen() {
   const [tab, setTab] = useState<TabKey>('overview');
   const [refreshing, setRefreshing] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const { modal: alertModal, showAlert: showAlertModal } = useAlertModal();
 
   const uid = useAuthStore((s) => s.token);
   const trips = useTripStore((s) => s.trips);
@@ -113,6 +117,10 @@ export default function TravelMonitoringScreen() {
     () => trips.find((t) => String(t.id) === String(tripId)) ?? trips[0] ?? null,
     [tripId, trips],
   );
+
+  // Trip status awareness - use centralized status
+  const { isCompleted, isCancelled, canMonitor, showLiveTracking, statusInfo } = useTripStatus(trip);
+  const isCompletedOrCancelled = isCompleted || isCancelled;
 
   const flight = useFlightMonitoringStore((s) => trip ? s.byTripId[trip.id] ?? null : null);
   const weather = useWeatherStore((s) => trip ? s.byTripId[trip.id] ?? null : null);
@@ -138,7 +146,8 @@ export default function TravelMonitoringScreen() {
     ? Math.max(0, (departureMs - now) / 3_600_000)
     : null;
 
-  const onTime = trip?.monitoringStatus !== 'at_risk';
+  // Use centralized statusInfo for consistent status across all screens
+  const onTime = !isCompletedOrCancelled && statusInfo.status !== 'delayed';
 
   const flightStatusColor: Record<string, string> = {
     scheduled: '#3B82F6', active: '#22C55E', landed: '#14B8A6',
@@ -150,9 +159,9 @@ export default function TravelMonitoringScreen() {
     setRefreshing(true);
     try {
       await refreshTripMonitoring(trip.id);
-      Alert.alert('Updated', 'Weather, flight and alerts refreshed.');
+      showAlertModal('Updated', 'Weather, flight and alerts refreshed.', [{ text: 'OK', style: 'primary' }]);
     } catch (e: any) {
-      Alert.alert('Refresh failed', e?.message ?? 'Please try again.');
+      showAlertModal('Refresh failed', e?.message ?? 'Please try again.', [{ text: 'OK', style: 'primary' }]);
     } finally {
       setRefreshing(false);
     }
@@ -165,7 +174,7 @@ export default function TravelMonitoringScreen() {
       const { shareText } = await generateShareUpdate(trip.id);
       await Share.share({ message: shareText, title: trip.title });
     } catch (e: any) {
-      Alert.alert('Share failed', e?.message ?? 'Could not generate share update.');
+      showAlertModal('Share failed', e?.message ?? 'Could not generate share update.', [{ text: 'OK', style: 'primary' }]);
     } finally {
       setSharing(false);
     }
@@ -174,7 +183,7 @@ export default function TravelMonitoringScreen() {
   function Pill(key: TabKey, label: string) {
     const active = tab === key;
     return (
-      <Pressable key={key} onPress={() => setTab(key)} className={['rounded-full px-4 py-2', active ? 'bg-tics-blue' : ''].join(' ')}>
+      <Pressable key={key} onPress={() => setTab(key)} className={['rounded-full p-4 px-5 border border-tics-amber/20', active ? 'bg-tics-amber/35' : ''].join(' ')}>
         <Text style={{ fontFamily: 'Syne_500Medium' }} className={['text-center text-[12px]', active ? 'text-tics-text' : 'text-tics-muted'].join(' ')}>
           {label}
         </Text>
@@ -185,12 +194,14 @@ export default function TravelMonitoringScreen() {
   return (
     <View className="flex-1" style={{ paddingTop: insets.top + 8 }}>
 
+      {alertModal}
+
       {/* ── Header ── */}
-      <View className="flex-row px-2 items-center justify-between mb-4">
+      <View className="p-2 flex-row items-center justify-between gap-3 bg-tics-amber/25 border border-tics-amber/10 rounded-full mb-3">
         <Pressable
           onPress={() => router.back()}
-          className="h-11 w-11 items-center justify-center rounded-xl border border-[#96C7B3]/50 bg-white/[0.06]"
-        >
+          style={{ height: 46, width: 46 }}
+          className="items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20">
           <Ionicons name="chevron-back" size={20} color="rgba(248,250,252,0.9)" />
         </Pressable>
 
@@ -208,21 +219,21 @@ export default function TravelMonitoringScreen() {
           <Pressable
             onPress={handleShare}
             disabled={sharing}
-            className="h-11 w-11 items-center justify-center rounded-xl bg-tics-amber"
-          >
+            style={{ height: 46, width: 46 }}
+            className="items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20">
             {sharing
               ? <ActivityIndicator size={14} color="rgba(248,250,252,0.75)" />
-              : <Ionicons name="share-social-outline" size={17} color="rgba(10,11,30,0.85)" />}
+              : <Ionicons name="share-social-outline" size={17} color="#fff" />}
           </Pressable>
           {/* Refresh */}
           <Pressable
             onPress={handleRefresh}
             disabled={refreshing}
-            className="h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-tics-amber"
-          >
+            style={{ height: 46, width: 46 }}
+            className="items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20">
             {refreshing
               ? <ActivityIndicator size={14} color="#000" />
-              : <Ionicons name="refresh" size={17} color="rgba(10,11,30,0.85)" />}
+              : <Ionicons name="refresh" size={17} color="#fff" />}
           </Pressable>
         </View>
       </View>
@@ -242,12 +253,12 @@ export default function TravelMonitoringScreen() {
         {/* ══════════════════════════════════════════════════════════
             FLIGHT PROGRESS CARD — always visible in all tabs
         ══════════════════════════════════════════════════════════ */}
-        <Card accent="blue" className="px-5 py-5 bg-tics-blue/30 rounded-2xl">
+        <Card accent="blue" className="px-5 py-5 bg-tics-amber/25 border border-tics-amber/10 rounded-4xl">
           <View className="flex-row items-center justify-between">
             <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px]">
               {trip?.flightNumber ?? 'Flight'}{trip?.airline ? ` · ${trip.airline}` : ''}
             </Text>
-            <StatusBadge value={onTime ? 'On Track' : 'At Risk'} positive={onTime} />
+            <StatusBadge value={statusInfo.label} positive={onTime} />
           </View>
 
           {/* Route */}
@@ -280,7 +291,7 @@ export default function TravelMonitoringScreen() {
 
           {/* Progress bar */}
           <View className="mt-5 h-2 overflow-hidden rounded-full bg-white/[0.08]">
-            <View className="h-2 rounded-full bg-tics-blue" style={{ width: `${Math.round(progress * 100)}%` }} />
+            <View className="h-2 rounded-full bg-tics-amber/35 border border-tics-amber/20" style={{ width: `${Math.round(progress * 100)}%` }} />
           </View>
 
           {/* Gate / Terminal / Remaining */}
@@ -323,7 +334,7 @@ export default function TravelMonitoringScreen() {
           {/* No flight data prompt */}
           {!flight && (
             <Pressable onPress={handleRefresh} disabled={refreshing} className="mt-4 active:opacity-70">
-              <View className="flex-row items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
+              <View className="flex-row items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-3">
                 {refreshing
                   ? <ActivityIndicator size={14} color="rgba(248,250,252,0.4)" />
                   : <Ionicons name="refresh-outline" size={15} color="rgba(248,250,252,0.4)" />}
@@ -343,11 +354,11 @@ export default function TravelMonitoringScreen() {
             {/* Timeline summary */}
             <Card accent="green" className="py-5">
               <View className="flex-row items-center justify-between mb-4">
-                <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-text text-[14px]">Timeline</Text>
+                <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[14px]">Timeline</Text>
                 {trip && (
                   <Pressable
                     onPress={() => router.push(({ pathname: `/timeline/${trip.id}` } as any))}
-                    className="flex-row items-center gap-1 bg-tics-amber/20 border border-tics-amber/35 rounded-full px-3 py-1"
+                    className="flex-row items-center gap-1 bg-tics-amber/35 border border-tics-amber/20 rounded-full px-3 py-2"
                   >
                     <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[12px] text-tics-muted">Full view</Text>
                     <Ionicons name="chevron-forward" size={12} color="rgba(248,250,252,0.55)" />
@@ -363,8 +374,8 @@ export default function TravelMonitoringScreen() {
                   },
                   {
                     label: 'Monitoring Status',
-                    value: onTime ? 'On Track' : 'At Risk',
-                    color: onTime ? '#22C55E' : '#F59E0B',
+                    value: statusInfo.label,
+                    color: statusInfo.color,
                   },
                   {
                     label: 'Arrival',
@@ -372,7 +383,7 @@ export default function TravelMonitoringScreen() {
                     color: '#22C55E',
                   },
                 ].map((row) => (
-                  <View key={row.label} className="flex-row items-center justify-between rounded-xl border border-[#96C7B3]/50 bg-white/[0.06] px-4 py-4">
+                  <View key={row.label} className="flex-row items-center justify-between rounded-full border border-[#96C7B3]/50 bg-white/[0.06] p-5">
                     <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px]">{row.label}</Text>
                     <Text style={{ fontFamily: 'Syne_600SemiBold', color: row.color }} className="text-[12px]">{row.value}</Text>
                   </View>
@@ -385,12 +396,12 @@ export default function TravelMonitoringScreen() {
               <View className="flex-row items-center justify-between mb-1">
                 <View className="flex-row items-center gap-2">
                   <Ionicons name="partly-sunny" size={20} color="#FBBF24" />
-                  <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-text text-[14px]">
+                  <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[14px]">
                     Weather at Destination
                   </Text>
                 </View>
                 {weather?.tempC != null && (
-                  <View className="rounded-full border border-tics-amber/35 bg-tics-amber/15 px-3 py-1">
+                  <View className="rounded-full border border-tics-amber/20 bg-tics-amber/35 px-3 py-2">
                     <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[14px]">
                       {Math.round(weather.tempC)}°C
                     </Text>
@@ -420,7 +431,7 @@ export default function TravelMonitoringScreen() {
                   <WeatherRiskBar score={weather.riskScore} />
                   {/* AI summary */}
                   {weather.riskSummary && (
-                    <View className="mt-2 rounded-xl border border-[#96C7B3]/50 bg-white/[0.06] px-4 py-3">
+                    <View className="mt-2 rounded-full border border-[#96C7B3]/50 bg-white/[0.06] px-4 py-3">
                       <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] leading-5">
                         {weather.riskSummary}
                       </Text>
@@ -453,7 +464,7 @@ export default function TravelMonitoringScreen() {
           <Card accent="blue" className="py-5">
             <View className="flex-row items-center gap-2 mb-4">
               <Ionicons name="airplane" size={18} color="#3B82F6" />
-              <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-text text-[14px]">Flight Monitoring</Text>
+              <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[14px]">Flight Monitoring</Text>
             </View>
 
             {flight ? (
@@ -504,11 +515,16 @@ export default function TravelMonitoringScreen() {
 
                 {/* Ask AI CTA */}
                 <Pressable
-                  onPress={() => trip && router.push(({ pathname: '/assistant', params: { tripId: trip.id } } as any))}
-                  className="mt-2 flex-row items-center justify-center gap-2 rounded-xl border border-tics-blue/30 bg-tics-blue/10 px-4 py-3"
+                  onPress={() => {
+                    if (!trip) return;
+                    const msg = `[Flight Analysis]\nI need information about my flight.\n\nTrip: ${trip.title}\nRoute: ${trip.from} → ${trip.to}\nFlight: ${trip.flightNumber ?? 'N/A'} (${trip.airline ?? 'N/A'})\nDeparture: ${new Date(trip.departureTime).toLocaleString()}\nArrival: ${new Date(trip.arrivalTime).toLocaleString()}\n\nCurrent flight status:\n- Status: ${flight?.status ?? 'Unknown'}\n- Gate: ${flight?.gate ?? 'TBC'}\n- Terminal: ${flight?.terminal ?? 'TBC'}\n- Delay: ${flight?.delayMinutes != null && flight.delayMinutes > 0 ? flight.delayMinutes + ' min' : 'None'}\n\nPlease analyze:\n1. Is my flight on schedule?\n2. Any gate or terminal changes I should know about\n3. What to expect at the airport\n4. Recommendations for a smooth travel experience`;
+                    useAssistantStore.getState().setPendingMessage(msg, trip.id);
+                    router.push('/assistant' as any);
+                  }}
+                  className="mt-2 flex-row items-center justify-center gap-2 rounded-full bg-tics-amber/35 border border-tics-amber/20 p-6"
                 >
-                  <Ionicons name="sparkles-outline" size={16} color="#60A5FA" />
-                  <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-blue text-[12px]">
+                  <Ionicons name="sparkles-outline" size={22} color="#fff" />
+                  <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-text text-[13px]">
                     Ask AI about this flight
                   </Text>
                 </Pressable>
@@ -523,10 +539,10 @@ export default function TravelMonitoringScreen() {
                 <Pressable
                   onPress={handleRefresh}
                   disabled={refreshing}
-                  className="flex-row items-center justify-center gap-2 rounded-xl border border-tics-blue/35 bg-tics-blue/15 px-4 py-4"
+                  className="flex-row items-center justify-center gap-1 rounded-full bg-tics-amber/35 border border-tics-amber/20 p-6"
                 >
-                  {refreshing ? <ActivityIndicator size={16} color="#3b82f6" /> : <Ionicons name="refresh" size={18} color="#3B82F6" />}
-                  <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-blue text-[13px]">
+                  {refreshing ? <ActivityIndicator size={16} color="#fff" /> : <Ionicons name="refresh" size={18} color="#fff" />}
+                  <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-text text-[13px]">
                     {refreshing ? 'Fetching live data…' : 'Fetch live flight data'}
                   </Text>
                 </Pressable>
@@ -543,11 +559,11 @@ export default function TravelMonitoringScreen() {
             <Card accent="purple" className="py-5">
               <View className="flex-row items-center gap-2 mb-4">
                 <Ionicons name="git-network-outline" size={18} color="#8B5CF6" />
-                <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-text text-[14px]">Route & Connections</Text>
+                <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[14px]">Route & Connections</Text>
               </View>
-
+          
               {/* Main leg */}
-              <View className="rounded-xl bg-tics-purple/30 px-4 py-4 mb-3">
+              <View className="rounded-4xl bg-tics-amber/25 border border-tics-amber/10 p-5 mb-3">
                 <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[10px] uppercase tracking-wide mb-3">
                   Main leg
                 </Text>
@@ -603,7 +619,7 @@ export default function TravelMonitoringScreen() {
                   ))}
                 </View>
               ) : (
-                <View className="rounded-xl border border-[#96C7B3]/50 bg-white/[0.06] px-4 py-4">
+                <View className="rounded-full border border-[#96C7B3]/50 bg-white/[0.06] px-4 py-4">
                   <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] leading-5">
                     Direct flight. Multi-leg intelligence activates when you add layovers to your itinerary.
                   </Text>

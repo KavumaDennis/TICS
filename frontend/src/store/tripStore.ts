@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import {
   addDoc,
+  deleteDoc,
   doc,
   getDocs,
   onSnapshot,
@@ -26,7 +27,13 @@ export type Trip = {
   id: string;
   userId: string;
   title: string;
-  status?: 'planned' | 'active' | 'completed' | 'canceled';
+  status?: 'upcoming' | 'boarding' | 'active' | 'airborne' | 'arriving' | 'completed' | 'canceled' | 'delayed';
+  /** When the trip was marked completed */
+  completedAt?: string | null;
+  /** Monitoring toggle */
+  monitoringEnabled?: boolean;
+  /** Last time the status was synced */
+  lastSyncedAt?: string | null;
   from: string;
   to: string;
   departureTime: string;
@@ -57,6 +64,28 @@ export type Trip = {
     lng?: number;
     placeId?: string;
   }>;
+  /** Booking reference / PNR */
+  bookingReference?: string | null;
+  /** Confirmation number from booking providers */
+  confirmationNumber?: string | null;
+  /** Booking provider name */
+  bookingProvider?: string | null;
+  /** Booking provider type */
+  bookingProviderType?: string | null;
+  /** Hotel name */
+  hotelName?: string | null;
+  /** Number of passengers */
+  passengers?: number | null;
+  /** Total price */
+  totalPrice?: string | null;
+  /** Whether imported from booking */
+  _bookingImport?: boolean;
+  /** Booking import source */
+  _bookingImportSource?: string | null;
+  /** Email sync source */
+  _emailSyncSource?: string | null;
+  /** Email sync ID */
+  _emailSyncId?: string | null;
 };
 
 export type CreateTripInput = Omit<Trip, 'id' | 'userId'>;
@@ -67,7 +96,10 @@ function mapTripDoc(id: string, data: any): Trip {
     id,
     userId: data.userId,
     title: data.title,
-    status: data.status ?? 'planned',
+    status: data.status ?? 'upcoming',
+    completedAt: typeof data.completedAt?.toDate === 'function' ? data.completedAt.toDate().toISOString() : (data.completedAt ?? null),
+    monitoringEnabled: data.monitoringEnabled ?? false,
+    lastSyncedAt: typeof data.lastSyncedAt?.toDate === 'function' ? data.lastSyncedAt.toDate().toISOString() : (data.lastSyncedAt ?? null),
     from: data.from,
     to: data.to,
     departureTime: data.departureTime,
@@ -99,6 +131,7 @@ type TripState = {
 
   addTrip: (userId: string, input: CreateTripInput) => Promise<Trip | null>;
   updateTrip: (tripId: string, patch: Partial<CreateTripInput>) => Promise<void>;
+  deleteCompletedTrips: (userId: string) => Promise<void>;
 };
 
 let unsubscribeTrips: Unsubscribe | null = null;
@@ -186,5 +219,32 @@ export const useTripStore = create<TripState>((set, get) => ({
       ...patch,
       updatedAt: serverTimestamp(),
     });
+  },
+
+  deleteCompletedTrips: async (userId: string) => {
+    set({ loading: true, error: null });
+    try {
+      const db = getFirebaseFirestore();
+      // Fetch ALL trips for this user, then filter completed client-side
+      // because trips may be time-completed without explicit status field
+      const q = query(
+        tripsCollection(),
+        where('userId', '==', userId),
+      );
+      const snap = await getDocs(q);
+      const batch: Promise<void>[] = [];
+      snap.docs.forEach((d) => {
+        const data = d.data();
+        // Check if trip is completed: explicit status or canceled
+        const isCompleted = data.status === 'completed' || data.status === 'canceled';
+        if (isCompleted) {
+          batch.push(deleteDoc(doc(db, 'trips', d.id)));
+        }
+      });
+      await Promise.all(batch);
+      set({ loading: false });
+    } catch (e: any) {
+      set({ loading: false, error: e?.message ?? 'Failed to delete completed trips' });
+    }
   },
 }));

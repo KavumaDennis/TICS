@@ -183,7 +183,13 @@ export default function RootLayout() {
         <Stack.Screen name="trip-input" />
         <Stack.Screen name="trips/[id]" />
         <Stack.Screen name="trips/[id]/map" />
+        <Stack.Screen name="trip/email-sync" />
+        <Stack.Screen name="trip/booking-import" />
         <Stack.Screen name="saved" />
+        <Stack.Screen name="last-mile/[tripId]" />
+        <Stack.Screen name="last-mile/tracking" />
+        <Stack.Screen name="last-mile/destination-select" />
+        <Stack.Screen name="last-mile/ride-complete" />
       </Stack>
       <StatusBar style="light" />
     </ThemeProvider>

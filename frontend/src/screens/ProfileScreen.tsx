@@ -6,7 +6,7 @@
 import type { ComponentProps } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import Card from '@/src/components/Card';
@@ -20,7 +20,7 @@ type Row = {
   icon: ComponentProps<typeof Ionicons>['name'];
   label: string;
   subtitle: string;
-  href: '/account/edit' | '/account/payment' | '/account/trips-preferences' | '/account/notifications' | '/account/support';
+  href: '/account/edit' | '/account/trips-preferences' | '/account/notifications' | '/account/support';
 };
 
 function StarRow({ current, onRate }: { current: number | null; onRate: (stars: number) => void }) {
@@ -74,7 +74,6 @@ export default function ProfileScreen() {
 
   const rows: Row[] = [
     { icon: 'person', label: 'Personal information', subtitle: 'Name, email · opens editor', href: '/account/edit' },
-    { icon: 'card', label: 'Payment methods', subtitle: 'Cards & billing (future)', href: '/account/payment' },
     { icon: 'briefcase', label: 'Trips & preferences', subtitle: 'Trip count & travel defaults', href: '/account/trips-preferences' },
     { icon: 'notifications', label: 'Notifications', subtitle: 'Push & digest preferences', href: '/account/notifications' },
     { icon: 'help-circle', label: 'Support center', subtitle: 'Help articles & contact', href: '/account/support' },
@@ -82,16 +81,24 @@ export default function ProfileScreen() {
 
   if (!token) {
     return (
-      <View className="flex-1 px-5 pt-10">
-        <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[22px]">Profile</Text>
-        <Card accent="blue" className="mt-6 py-6">
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[20px]">Not signed in</Text>
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-2 text-tics-muted text-[12px] leading-5">Sign in to sync trips, alerts, and preferences.</Text>
+      <View className="flex-1 px-2 pt-10">
+        <View className='p-2 flex-row items-center gap-3 bg-tics-amber/25 border border-tics-amber/10 rounded-full'>
+          <Pressable
+            onPress={() => router.back()}
+            style={{ width: 46, height: 46 }}
+            className="items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full">
+            <Ionicons name="chevron-back" size={22} color="rgba(248,250,252,0.9)" />
+          </Pressable>
+          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[17px]">Profile</Text>
+        </View>
+        <Card accent="blue" className="py-6">
+          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-amber ml-2 text-[20px]">Not signed in</Text>
+          <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-2 ml-2 text-tics-muted text-[12px] leading-5">Sign in to sync trips, alerts, and preferences.</Text>
           <View className="mt-5 flex-row gap-3">
-            <Pressable onPress={() => router.push('/auth/login')} className="flex-1 rounded-2xl bg-tics-amber px-5 py-4">
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-center text-[14px] text-[#05210f]">Login</Text>
+            <Pressable onPress={() => router.push('/auth/login')} className="flex-1 bg-tics-amber/35 border border-tics-amber/20 rounded-full px-5 py-6">
+              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-center text-[14px] text-tics-text">Login</Text>
             </Pressable>
-            <Pressable onPress={() => router.push('/auth/register')} className="flex-1 rounded-2xl border border-[#96C7B3]/50 bg-white/[0.06] px-5 py-4">
+            <Pressable onPress={() => router.push('/auth/register')} className="flex-1 rounded-full border border-[#96C7B3]/50 bg-white/[0.06] px-5 py-6">
               <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-center text-[13px] text-tics-text">Register</Text>
             </Pressable>
           </View>
@@ -101,10 +108,18 @@ export default function ProfileScreen() {
   }
 
   return (
-    <View className="flex-1 px-2 pt-14">
-      <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[24px]">Profile</Text>
+    <View className="flex-1 px-2 pt-10">
+      <View className='p-2 flex-row items-center gap-3 bg-tics-amber/25 border border-tics-amber/10 rounded-full'>
+        <Pressable
+          onPress={() => router.back()}
+          style={{ width: 46, height: 46 }}
+          className="items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full">
+          <Ionicons name="chevron-back" size={22} color="rgba(248,250,252,0.9)" />
+        </Pressable>
+        <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[17px]">Profile</Text>
+      </View>
 
-      <ScrollView className="mt-6" contentContainerStyle={{ paddingBottom: 112, gap: 16 }} showsVerticalScrollIndicator={false}>
+      <ScrollView className="mt-6" contentContainerStyle={{ paddingBottom: 12, gap: 16 }} showsVerticalScrollIndicator={false}>
 
         {/* ── Avatar + name ── */}
         <Pressable onPress={() => router.push('/account/edit')} className="active:opacity-90">
@@ -124,16 +139,16 @@ export default function ProfileScreen() {
 
         {/* ── Stats row ── */}
         <View className="flex-row gap-3">
-          <View className="flex-1 items-center bg-tics-blue/20 rounded-2xl py-4">
+          <View className="flex-1 items-center bg-tics-blue/20 rounded-3xl py-4">
             <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-blue text-[32px]">{tripsCount}</Text>
             <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] mt-1">Trips</Text>
           </View>
-          <View className="flex-1 items-center bg-tics-blue/20 rounded-2xl py-4">
+          <View className="flex-1 items-center bg-tics-blue/20 rounded-3xl py-4">
             <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-blue text-[32px]">{flightsCount}</Text>
             <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] mt-1">Flights</Text>
           </View>
           <Pressable
-            className="flex-1 items-center bg-tics-amber/15 rounded-2xl py-4 active:opacity-80"
+            className="flex-1 items-center bg-tics-amber/15 rounded-3xl py-4 active:opacity-80"
             onPress={() => setShowRating((v) => !v)}
           >
             <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-amber text-[32px]">
@@ -146,29 +161,56 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        {/* ── Rating panel ── */}
-        {showRating && (
-          <Card accent="none" className="py-5 px-4">
-            <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-text text-[15px] text-center">Rate TICS</Text>
-            {averageRating != null && (
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] text-center mt-1">
-                Global average: {averageRating.toFixed(1)} ★ ({totalRatings} ratings)
+        {/* ── Rating Modal ── */}
+        <Modal
+          transparent
+          visible={showRating}
+          animationType="fade"
+        >
+          <View className="flex-1 bg-black/60 items-center justify-center px-2">
+            <View className="w-full bg-tics-bg2 rounded-4xl p-6 border border-tics-amber/20">
+              <Text
+                style={{ fontFamily: 'Syne_700Bold' }}
+                className="text-tics-amber text-[18px] mb-2 text-center"
+              >
+                Rate TICS
               </Text>
-            )}
-            <StarRow current={userStars} onRate={handleRate} />
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] text-center">
-              {userStars != null ? `Your current rating: ${userStars} star${userStars === 1 ? '' : 's'}. Tap to update.` : 'Tap a star to rate.'}
-            </Text>
-            {submitting && (
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] text-center mt-2">Saving…</Text>
-            )}
-          </Card>
-        )}
+
+              {averageRating != null && (
+                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] text-center mb-4">
+                  Global average: {averageRating.toFixed(1)} ★ ({totalRatings} ratings)
+                </Text>
+              )}
+
+              <StarRow current={userStars} onRate={handleRate} />
+
+              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] text-center mb-6">
+                {userStars != null ? `Your current rating: ${userStars} star${userStars === 1 ? '' : 's'}.` : 'Tap a star to rate.'}
+              </Text>
+
+              {submitting && (
+                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] text-center mb-4">Saving…</Text>
+              )}
+
+              <Pressable
+                onPress={() => setShowRating(false)}
+                className="bg-tics-red rounded-full py-6 border border-tics-red/20"
+              >
+                <Text
+                  style={{ fontFamily: 'Syne_500Medium' }}
+                  className="text-center text-black"
+                >
+                  Cancel
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
 
         {/* ── Global app rating ── */}
         {averageRating != null && !showRating && (
           <Pressable onPress={() => setShowRating(true)} className="active:opacity-80">
-            <View className="flex-row items-center gap-3 rounded-2xl border border-tics-amber/25 bg-tics-amber/10 px-4 py-3">
+            <View className="flex-row items-center gap-3 rounded-full border border-tics-amber/25 bg-tics-amber/10 px-4 py-3">
               <Ionicons name="star" size={18} color="#F59E0B" />
               <View className="flex-1">
                 <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[13px]">
@@ -185,7 +227,7 @@ export default function ProfileScreen() {
 
         {/* ── Saved items quick link ── */}
         <Pressable onPress={() => router.push('/saved' as any)} className="active:opacity-80">
-          <View className="flex-row items-center gap-3 rounded-2xl border border-[#96C7B3]/50 bg-white/[0.05] px-4 py-3">
+          <View className="flex-row items-center gap-3 rounded-full bg-tics-amber/35 border border-tics-amber/20 px-4 py-3">
             <Ionicons name="bookmark-outline" size={18} color="#3B82F6" />
             <View className="flex-1">
               <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-text text-[14px]">Saved items</Text>
@@ -198,7 +240,7 @@ export default function ProfileScreen() {
         </Pressable>
 
         {/* ── Settings rows ── */}
-        <View className="bg-tics-blue/20 py-3 px-5 rounded-3xl">
+        <View className="bg-tics-blue/20 py-3 px-5 rounded-4xl">
           {rows.map((row, i) => (
             <Pressable
               key={row.href}
@@ -223,7 +265,7 @@ export default function ProfileScreen() {
         <Pressable
           disabled={loading}
           onPress={logout}
-          className="flex-row justify-center items-center gap-2 bg-tics-red/15 border border-tics-red/20 py-4 px-5 rounded-2xl"
+          className="flex-row justify-center items-center gap-2 bg-tics-red/15 border border-tics-red/20 p-6 rounded-full"
           style={{ opacity: loading ? 0.6 : 1 }}
         >
           <Ionicons name="log-out" size={18} color="#EF4444" />

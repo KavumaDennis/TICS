@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "956886937569",
+    "project_id": "tics-455d5",
+    "storage_bucket": "tics-455d5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:956886937569:android:579f9c56ec881358f16ca0",
+        "android_client_info": {
+          "package_name": "com.kavumadennis.tics"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "956886937569-33ktms6lqqdej1usnhd5899b3bv47lir.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kavumadennis.tics",
+            "certificate_hash": "9834edb9eeba05599aebbb0cd7d8d6457419fdf5"
+          }
+        },
+        {
+          "client_id": "956886937569-s0db9qdqbkrgvpid8tv6179h17260bi5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAqP67GNLh33-j5DJ0jk1eZXUhQ8_vh6j0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "956886937569-s0db9qdqbkrgvpid8tv6179h17260bi5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -48,12 +48,12 @@ export default function ImageSlider() {
   return (
     <View
       style={{
-        height: 170,
-        marginVertical: 25,
-        borderRadius: 12,
+        height: 220,
+        marginVertical: 18,
         overflow: "hidden",
         position: "relative",
       }}
+      className="rounded-4xl"
     >
       {/* Base image (always visible) */}
       <Image

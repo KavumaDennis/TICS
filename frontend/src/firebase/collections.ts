@@ -1,6 +1,10 @@
 import { collection } from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/firebase/firebaseApp';
 
+export function assignmentsCollection() {
+  return collection(getFirebaseFirestore(), 'assignments');
+}
+
 /* ── Top-level flat collections (legacy + active) ─────────────────────────── */
 
 export function usersCollection() {

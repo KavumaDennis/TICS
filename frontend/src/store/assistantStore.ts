@@ -33,6 +33,10 @@ type AssistantState = {
   loading: boolean;
   sending: boolean;
   error: string | null;
+  /** Pre-set initial message to auto-send on next conversation start */
+  pendingInitialMessage: string | null;
+  /** Pre-set trip ID to use when navigating to assistant */
+  pendingTripId: string | null;
 
   startConversation: (uid: string, tripId: string | null) => void;
   stopConversation: () => void;
@@ -41,6 +45,10 @@ type AssistantState = {
     tripId: string | null;
     text: string;
   }) => Promise<void>;
+  /** Set a message that will be auto-sent when the assistant screen opens */
+  setPendingMessage: (message: string, tripId?: string | null) => void;
+  /** Clear pending message */
+  clearPendingMessage: () => void;
 };
 
 /* =========================
@@ -69,6 +77,21 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
   loading: false,
   sending: false,
   error: null,
+  pendingInitialMessage: null,
+  pendingTripId: null,
+
+  setPendingMessage: (message, tripId) => {
+    console.log('[assistantStore] setPendingMessage called', {
+      messagePreview: message?.substring(0, 80) + '...',
+      tripId: tripId ?? null,
+    });
+    set({ pendingInitialMessage: message, pendingTripId: tripId ?? null });
+  },
+
+  clearPendingMessage: () => {
+    console.log('[assistantStore] clearPendingMessage called');
+    set({ pendingInitialMessage: null, pendingTripId: null });
+  },
 
   /* =========================
      START CONVERSATION
@@ -76,10 +99,24 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
 
   startConversation: (uid, tripId) => {
     const db = getFirebaseFirestore();
-    const conversationId = buildConversationId(uid, tripId);
+    // Use pendingTripId if set, otherwise use the provided tripId
+    const effectiveTripId = get().pendingTripId ?? tripId;
+    const conversationId = buildConversationId(uid, effectiveTripId);
+
+    console.log('[assistantStore] startConversation', {
+      uid,
+      providedTripId: tripId,
+      pendingTripId: get().pendingTripId,
+      effectiveTripId,
+      conversationId,
+      activeConversationId,
+    });
 
     // prevent duplicate listeners
-    if (activeConversationId === conversationId) return;
+    if (activeConversationId === conversationId) {
+      console.log('[assistantStore] conversation already active, skipping');
+      return;
+    }
 
     // cleanup old listener
     if (unsubMessages) {
@@ -91,7 +128,7 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
 
     set({
       conversationId,
-      tripId,
+      tripId: effectiveTripId,
       messages: [],
       loading: true,
       error: null,
@@ -111,7 +148,6 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
       (snap) => {
         const msgs: AssistantMessage[] = snap.docs.map((d) => {
           const data: any = d.data();
-
           return {
             id: d.id,
             role: data.role === 'assistant' ? 'assistant' : 'user',
@@ -120,12 +156,19 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
           };
         });
 
+        console.log('[assistantStore] messages snapshot received', {
+          count: msgs.length,
+          conversationId: get().conversationId,
+          loading: false,
+        });
+
         set({
           messages: msgs,
           loading: false,
         });
       },
       (err) => {
+        console.error('[assistantStore] snapshot error', err);
         set({
           loading: false,
           error: err?.message ?? 'Failed to load messages',
@@ -139,6 +182,7 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
   ========================= */
 
   stopConversation: () => {
+    console.log('[assistantStore] stopConversation called');
     if (unsubMessages) {
       unsubMessages();
       unsubMessages = null;
@@ -162,9 +206,22 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
 
   sendMessage: async ({ uid, tripId, text }) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      console.warn('[assistantStore] sendMessage called with empty text');
+      return;
+    }
 
-    if (get().sending) return;
+    console.log('[assistantStore] sendMessage called', {
+      textPreview: trimmed.substring(0, 80) + '...',
+      uid,
+      tripId,
+      currentSending: get().sending,
+    });
+
+    if (get().sending) {
+      console.warn('[assistantStore] already sending, skipping');
+      return;
+    }
 
     set({ sending: true, error: null });
 
@@ -176,17 +233,23 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
           text: m.text,
         }));
 
+      console.log('[assistantStore] calling assistantChat function', {
+        historyLength: history.length,
+        trimmedLength: trimmed.length,
+      });
+
       await assistantChat({
         message: trimmed,
         tripId,
         history,
       });
 
+      console.log('[assistantStore] assistantChat succeeded');
       // Firestore listener automatically updates UI — no manual push needed
     } catch (e: any) {
+      console.error('[assistantStore] assistantChat failed', e?.message ?? e);
       // Surface the error so the UI can show it
       const msg = e?.message ?? 'Assistant is unavailable right now. Please try again.';
-      // Also add a synthetic error message to the chat so user sees feedback inline
       set((state) => ({
         error: msg,
         messages: [

@@ -263,16 +263,19 @@ export default function MapScreen() {
   return (
     <View className="flex-1 px-2 pt-10">
       {/* Header */}
-      <View className="flex-row items-center gap-3">
-        <View className="flex-row items-center gap-3">
+      <View className="flex-row items-center gap-3 p-2 rounded-full bg-tics-amber/25 border border-tics-amber/10">
+        <View className="flex-row items-center gap-3 ">
           <Pressable
             onPress={() => router.back()}
-            className="h-11 w-11 items-center justify-center rounded-xl border border-[#96C7B3]/50 bg-white/[0.05]"
+            style={{ width: 46, height: 46 }}
+            className="items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full"
           >
             <Ionicons name="chevron-back" size={20} color="rgba(234,242,255,0.9)" />
           </Pressable>
-          <View className="h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-tics-blue">
-            <FontAwesome5 name="map-marker-alt" size={18} color="black" />
+          <View
+          style={{ width: 46, height: 46 }}
+          className="items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full">
+            <FontAwesome5 name="map-marker-alt" size={18} color="#fff" />
           </View>
         </View>
         <View>
@@ -288,7 +291,7 @@ export default function MapScreen() {
       </View>
 
       {hasAnyRoute ? (
-        <View className="mt-3 flex-1 overflow-hidden rounded-2xl border border-white/10">
+        <View className="mt-3 flex-1 overflow-hidden rounded-4xl border border-white/10">
           {Platform.OS === 'web' || !MapView ? (
             <View className="flex-1 items-center justify-center bg-[#1E293B]">
               <Ionicons name="map-outline" size={48} color="rgba(248,250,252,0.2)" />
@@ -352,7 +355,7 @@ export default function MapScreen() {
 
       {/* Route info bar */}
       {hasAnyRoute && trip && (
-        <View className="mt-3 mb-4 flex-row items-center gap-3 rounded-xl border border-[#96C7B3]/50 bg-white/[0.05] px-4 py-3">
+        <View className="mt-3 mb-4 flex-row items-center gap-3 bg-tics-amber/35 border border-tics-amber/20 rounded-full px-4 py-4">
           <Ionicons name={hasGroundRoute ? 'car' : 'airplane'} size={18} color="#3B82F6" />
           <View className="flex-1">
             <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[12px]">

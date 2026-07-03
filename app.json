@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "TICS",
+    "slug": "tics",
+    "version": "1.0.0",
+
+    "android": {
+      "package": "com.kavumadennis.tics",
+      "googleServicesFile": "./google-services.json"
+    },
+
+    "ios": {
+      "bundleIdentifier": "com.kavumadennis.tics"
+    },
+
+    "extra": {
+      "eas": {
+        "projectId": "bd357302-d05b-4af2-a2f6-2816ebb0ab5f"
+      }
+    }
+  }
+}

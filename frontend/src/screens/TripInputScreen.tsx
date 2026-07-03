@@ -644,7 +644,7 @@ function AirlineSelector({ value, onChange }: { value: string; onChange: (v: str
 
   return (
     <View className="py-1">
-      <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] uppercase tracking-wider">
+      <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] ml-2 uppercase tracking-wider">
         Airline (optional)
       </Text>
       <TextInput
@@ -656,10 +656,10 @@ function AirlineSelector({ value, onChange }: { value: string; onChange: (v: str
         placeholder="e.g. Emirates, Kenya Airways"
         placeholderTextColor="rgba(248,250,252,0.32)"
         maxLength={50}
-        className="mt-2 text-tics-text rounded-xl border border-[#96C7B3]/50 bg-white/[0.05] px-4 py-3.5"
+        className="mt-1 flex-row items-center justify-between rounded-full border border-[#96C7B3]/50 bg-white/[0.05] text-tics-text p-5"
       />
       {results.length > 0 && focused && (
-        <View className="mt-1 rounded-xl border border-[#96C7B3]/50 bg-[#1a1f3a] overflow-hidden" style={{ maxHeight: 200 }}>
+        <View className="mt-1 rounded-3xl border border-[#96C7B3]/50 bg-[#1a1f3a] overflow-hidden" style={{ maxHeight: 200 }}>
           {results.map((a) => (
             <Pressable
               key={a.iata}
@@ -667,7 +667,7 @@ function AirlineSelector({ value, onChange }: { value: string; onChange: (v: str
               className="px-4 py-3 border-b border-white/5 active:bg-white/10"
             >
               <View className="flex-row items-center gap-3">
-                <View className="rounded-lg bg-tics-amber/15 px-2 py-1">
+                <View className="rounded-2xl bg-tics-amber/15 px-2 py-1">
                   <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-amber text-[11px]">{a.iata}</Text>
                 </View>
                 <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[13px]">{a.name}</Text>
@@ -723,7 +723,7 @@ function AirportSelector({
 
   return (
     <View className="py-1">
-      <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] uppercase tracking-wider">
+      <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] ml-2 uppercase tracking-wider">
         {label}
       </Text>
       <TextInput
@@ -734,7 +734,7 @@ function AirportSelector({
         onBlur={() => setTimeout(() => setFocused(false), 200)}
         placeholder={placeholder}
         placeholderTextColor="rgba(248,250,252,0.32)"
-        className="mt-2 text-tics-text rounded-xl border border-[#96C7B3]/50 bg-white/[0.05] px-4 py-3.5"
+        className="mt-1 flex-row items-center justify-between rounded-full border border-[#96C7B3]/50 bg-white/[0.05] text-tics-text p-5"
       />
       {error ? (
         <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-1 text-tics-red text-[10px]">{error}</Text>
@@ -748,7 +748,7 @@ function AirportSelector({
         </View>
       ) : null}
       {results.length > 0 && focused ? (
-        <View className="mt-1 rounded-xl border border-[#96C7B3]/50 bg-[#1a1f3a] overflow-hidden" style={{ maxHeight: 200 }}>
+        <View className="mt-1 rounded-3xl border border-[#96C7B3]/50 bg-[#1a1f3a] overflow-hidden" style={{ maxHeight: 200 }}>
           {results.map((a) => (
             <Pressable
               key={a.code}
@@ -761,7 +761,7 @@ function AirportSelector({
               className="px-4 py-3 border-b border-white/5 active:bg-white/10"
             >
               <View className="flex-row items-center gap-3">
-                <View className="rounded-lg bg-tics-blue/20 px-2 py-1">
+                <View className="rounded-2xl bg-tics-blue/20 px-2 py-1">
                   <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-blue text-[12px]">
                     {a.code}
                   </Text>
@@ -948,7 +948,7 @@ export default function TripInputScreen() {
       departureTime: departureTime.toISOString(),
       arrivalTime: arrivalTime.toISOString(),
       monitoringStatus: 'unknown',
-      lastMileStatus: 'scheduled',
+      lastMileStatus: 'pending',
     } as any);
     if (trip) router.replace('/home');
   }
@@ -975,14 +975,15 @@ export default function TripInputScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 8, paddingTop: 55, paddingBottom: 112, gap: 16 }}
+        contentContainerStyle={{ paddingHorizontal: 8, paddingTop: 40, gap: 16 }}
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
-        <View className="flex-row items-center gap-3">
+        <View className="p-2 flex-row items-center gap-3 bg-tics-amber/25 border border-tics-amber/10 rounded-full">
           <Pressable
             onPress={() => router.back()}
-            className="h-11 w-11 items-center justify-center rounded-xl border border-[#96C7B3]/50 bg-white/[0.05]"
+            style={{ height: 46, width: 46 }}
+            className="items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full"
           >
             <Ionicons name="chevron-back" size={20} color="rgba(248,250,252,0.9)" />
           </Pressable>
@@ -997,11 +998,11 @@ export default function TripInputScreen() {
         </View>
 
         {/* Form card */}
-        <Card accent="green" className="py-5">
+        <Card accent="green" className="pb-5">
           <View className="gap-4">
             {/* Trip title */}
             <View className="py-1">
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] uppercase tracking-wider">
+              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] ml-2 uppercase tracking-wider">
                 Trip Title
               </Text>
               <TextInput
@@ -1012,7 +1013,7 @@ export default function TripInputScreen() {
                 placeholder="e.g. Business Trip to Dubai"
                 placeholderTextColor="rgba(248,250,252,0.32)"
                 maxLength={80}
-                className="mt-2 text-tics-text rounded-xl border border-[#96C7B3]/50 bg-white/[0.05] px-4 py-3.5"
+                className="mt-1 flex-row items-center justify-between rounded-full border border-[#96C7B3]/50 bg-white/[0.05] text-tics-text p-5"
               />
               <FieldError field="title" />
             </View>
@@ -1043,7 +1044,7 @@ export default function TripInputScreen() {
 
             {/* Flight number */}
             <View className="py-1">
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] uppercase tracking-wider">
+              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] ml-2 uppercase tracking-wider">
                 Flight Number (optional)
               </Text>
               <TextInput
@@ -1055,7 +1056,7 @@ export default function TripInputScreen() {
                 placeholderTextColor="rgba(248,250,252,0.32)"
                 autoCapitalize="characters"
                 maxLength={6}
-                className="mt-2 text-tics-text rounded-xl border border-[#96C7B3]/50 bg-white/[0.05] px-4 py-3.5"
+                className="mt-1 flex-row items-center justify-between rounded-full border border-[#96C7B3]/50 bg-white/[0.05] text-tics-text p-5"
               />
               <FieldError field="flightNumber" />
               {flightNumber && !errors.flightNumber ? (
@@ -1070,12 +1071,12 @@ export default function TripInputScreen() {
 
             {/* Departure time */}
             <View className="py-1">
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] uppercase tracking-wider">
+              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] ml-2 uppercase tracking-wider">
                 Departure Date & Time
               </Text>
               <Pressable
                 onPress={openDepPicker}
-                className="mt-2 flex-row items-center justify-between rounded-xl border border-[#96C7B3]/50 bg-white/[0.05] px-4 py-3.5"
+                className="mt-1 flex-row items-center justify-between rounded-full border border-[#96C7B3]/50 bg-white/[0.05] text-tics-text p-5"
               >
                 <Text
                   style={{ fontFamily: 'Syne_500Medium', color: departureTime ? 'rgba(248,250,252,0.9)' : 'rgba(248,250,252,0.32)', fontSize: 13 }}
@@ -1123,12 +1124,12 @@ export default function TripInputScreen() {
 
             {/* Arrival time */}
             <View className="py-1">
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] uppercase tracking-wider">
+              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] ml-2 uppercase tracking-wider">
                 Arrival Date & Time
               </Text>
               <Pressable
                 onPress={openArrPicker}
-                className="mt-2 flex-row items-center justify-between rounded-xl border border-[#96C7B3]/50 bg-white/[0.05] px-4 py-3.5"
+                className="mt-1 flex-row items-center justify-between rounded-full border border-[#96C7B3]/50 bg-white/[0.05] text-tics-text p-5"
               >
                 <Text
                   style={{ fontFamily: 'Syne_500Medium', color: arrivalTime ? 'rgba(248,250,252,0.9)' : 'rgba(248,250,252,0.32)', fontSize: 13 }}
@@ -1174,7 +1175,7 @@ export default function TripInputScreen() {
 
             {/* Weather location preview */}
             {destinationAirport && (
-              <View className="flex-row items-center gap-2 rounded-xl border border-[#96C7B3]/50 bg-white/[0.05] px-4 py-3">
+              <View className="flex-row items-center gap-2 rounded-full border border-[#96C7B3]/50 bg-white/[0.05] text-tics-text p-4">
                 <Ionicons name="partly-sunny" size={16} color="#FBBF24" />
                 <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] flex-1">
                   Weather lookup: <Text className="text-tics-text">{destinationAirport.city},{destinationAirport.country}</Text>
@@ -1192,13 +1193,13 @@ export default function TripInputScreen() {
           <Pressable
             onPress={onSubmit}
             disabled={!canSubmit || loading}
-            style={{ borderRadius: 16, paddingVertical: 16, alignItems: 'center' }}
-            className="mt-6 bg-tics-amber"
+            style={{ alignItems: 'center' }}
+            className="mt-6 bg-tics-amber/35 border border-tics-amber/20 rounded-full py-6"
           >
             {loading ? (
               <ActivityIndicator size={18} color="#000" />
             ) : (
-              <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-[14px] text-black">
+              <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-[14px] text-tics-text">
                 Save Trip
               </Text>
             )}

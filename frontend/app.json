@@ -5,14 +5,16 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
+    "scheme": "tics",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "config": {}
+      "config": {},
+      "bundleIdentifier": "com.kavumadennis.tics"
     },
     "android": {
+      "package": "com.kavumadennis.tics",
       "usesCleartextTraffic": true,
       "config": {},
       "adaptiveIcon": {
@@ -48,6 +50,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "346b603d-0d61-4009-9123-b72a962f4829"
+      }
     }
   }
 }

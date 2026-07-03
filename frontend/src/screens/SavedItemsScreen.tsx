@@ -9,6 +9,8 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSaveStore, type SavedItem } from '@/src/store/saveStore';
+import { useAuthStore } from '@/src/store/useAuthStore';
+import { useAlertModal } from '@/src/components/AlertModal';
 
 const TYPE_META: Record<SavedItem['itemType'], { icon: string; color: string; label: string }> = {
   alert:          { icon: 'warning-outline',   color: '#EF4444', label: 'Alert'          },
@@ -21,8 +23,10 @@ type Filter = 'all' | SavedItem['itemType'];
 export default function SavedItemsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { items } = useSaveStore();
+  const uid = useAuthStore((s) => s.token);
+  const { items, clearAll } = useSaveStore();
   const [filter, setFilter] = useState<Filter>('all');
+  const { modal: clearModal, showAlert: showClearAlert } = useAlertModal();
 
   const filtered = useMemo(() => {
     if (filter === 'all') return items;
@@ -64,6 +68,37 @@ export default function SavedItemsScreen() {
         <Chip id="alert" label="Alerts" />
         <Chip id="insight" label="Insights" />
       </View>
+
+      {/* Clear all button */}
+      {items.length > 0 && (
+        <Pressable
+          onPress={() => {
+            showClearAlert(
+              'Clear all saved items',
+              `This will permanently delete all ${items.length} saved item(s). This action cannot be undone.`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Clear all',
+                  style: 'destructive',
+                  onPress: () => {
+                    if (uid) {
+                      clearAll(uid);
+                    }
+                  },
+                },
+              ]
+            );
+          }}
+          className="bg-tics-red/20 border border-tics-red/30 rounded-xl px-4 py-3 mx-2 mb-3"
+        >
+          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-red text-[13px] text-center">
+            Clear all saved items
+          </Text>
+        </Pressable>
+      )}
+
+      {clearModal}
 
       <ScrollView
         contentContainerStyle={{ gap: 12, paddingHorizontal: 8, paddingBottom: 40 }}

@@ -34,12 +34,12 @@ function Field({
 }) {
   return (
     <View style={{ marginBottom: 16 }}>
-      <Text style={{ fontFamily: 'Syne_500Medium', color: 'rgba(148,163,184,0.7)', fontSize: 11, letterSpacing: 0.8, marginBottom: 6 }}>
+      <Text className='text-tics-text ml-2 ' style={{ fontFamily: 'Syne_500Medium', fontSize: 10, letterSpacing: 0.8, marginBottom: 6 }}>
         {label.toUpperCase()}
       </Text>
       <View
         
-        className={`rounded-2xl border border-[#96C7B3]/50 px-3 py-2 ${editable ? 'bg-white/[0.05]' : 'bg-white/[0.01]'}`}
+        className={`rounded-full border border-[#96C7B3]/50 px-3 py-2 ${editable ? 'bg-white/[0.05]' : 'bg-white/[0.01]'}`}
         style={{
           paddingHorizontal: 16, paddingVertical: 13,
         }}>
@@ -109,21 +109,23 @@ export default function EditProfileScreen() {
   return (
     <View className="flex-1" style={{ paddingTop: insets.top + 8 }}>
       {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 8, paddingBottom: 16 }}>
+      <View
+      className='bg-tics-amber/25 border border-tics-amber/10 rounded-full p-2 gap-2'
+      style={{ flexDirection: 'row', alignItems: 'center',}}>
         <Pressable
           onPress={() => router.back()}
-          className="border border-[#96C7B3]/50 bg-white/[0.05] rounded-xl"
-          style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+          className="items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full"
+          style={{ width: 46, height: 46, alignItems: 'center', justifyContent: 'center' }}
         >
           <Ionicons name="chevron-back" size={20} color="rgba(248,250,252,0.9)" />
         </Pressable>
-        <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 20 }}>Edit Profile</Text>
+        <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 17 }}>Edit Profile</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
 
         {/* Avatar placeholder */}
-        <View style={{ alignItems: 'center', marginBottom: 28 }}>
+        <View className='mt-5' style={{ alignItems: 'center', marginBottom: 28 }}>
           <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(59,130,246,0.2)', borderWidth: 2, borderColor: 'rgba(59,130,246,0.4)', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="person" size={30} color="rgba(248,250,252,0.7)" />
           </View>
@@ -169,13 +171,13 @@ export default function EditProfileScreen() {
           onPress={onSave}
           disabled={saving}
           style={{
-            marginTop: 8, borderRadius: 16, backgroundColor: '#F59E0B',
-            paddingVertical: 16, alignItems: 'center', opacity: saving ? 0.7 : 1,
+            alignItems: 'center', opacity: saving ? 0.7 : 1,
           }}
+          className='p-6 items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full'
         >
           {saving
             ? <ActivityIndicator size={18} color="#000" />
-            : <Text style={{ fontFamily: 'Syne_700Bold', color: '#000', fontSize: 15 }}>Save changes</Text>}
+            : <Text style={{ fontFamily: 'Syne_700Bold', color: '#fff', fontSize: 15 }}>Save changes</Text>}
         </Pressable>
 
         {/* Preview */}
