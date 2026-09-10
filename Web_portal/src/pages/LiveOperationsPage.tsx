@@ -32,8 +32,12 @@ function formatETA(iso: string): string {
 function getStatusColor(status: string): string {
   switch (status) {
     case 'assigned': return 'badge-blue';
+    case 'ride_started':
+    case 'in_progress':
     case 'en_route': return 'badge-yellow';
+    case 'driver_arrived':
     case 'arrived': return 'badge-green';
+    case 'near_destination': return 'badge-yellow';
     case 'completed': return 'badge-gray';
     case 'cancelled': return 'badge-red';
     default: return 'badge-gray';
@@ -47,9 +51,15 @@ export default function LiveOperationsPage() {
 
   useEffect(() => {
     const db = getFirebaseFirestore();
+    // The mobile app uses ride_started / driver_arrived / near_destination statuses;
+    // the web portal uses en_route / arrived. Both write to the same assignments
+    // collection, so the active filter must include all variants.
+    const activeStatuses = filter === 'active'
+      ? ['assigned', 'en_route', 'arrived', 'ride_started', 'driver_arrived', 'near_destination', 'in_progress']
+      : [filter];
     const q = query(
       collection(db, 'assignments'),
-      where('status', 'in', filter === 'active' ? ['assigned', 'en_route', 'arrived'] : [filter]),
+      where('status', 'in', activeStatuses),
       orderBy('assignedAt', 'desc')
     );
 
@@ -81,7 +91,9 @@ export default function LiveOperationsPage() {
     { value: 'completed', label: 'Completed' },
   ];
 
-  const activeCount = assignments.filter(a => a.status === 'assigned' || a.status === 'en_route').length;
+  const activeCount = assignments.filter(a =>
+    ['assigned', 'en_route', 'arrived', 'ride_started', 'driver_arrived', 'near_destination', 'in_progress'].includes(a.status)
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -132,13 +144,13 @@ export default function LiveOperationsPage() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-start gap-4">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    assignment.status === 'arrived' ? 'bg-green-500/20' :
-                    assignment.status === 'en_route' ? 'bg-yellow-500/20' :
+                    assignment.status === 'arrived' || assignment.status === 'driver_arrived' ? 'bg-green-500/20' :
+                    assignment.status === 'en_route' || assignment.status === 'ride_started' || assignment.status === 'near_destination' ? 'bg-yellow-500/20' :
                     'bg-blue-500/20'
                   }`}>
-                    {assignment.status === 'arrived' ? (
+                    {assignment.status === 'arrived' || assignment.status === 'driver_arrived' ? (
                       <CheckCircle className="w-5 h-5 text-green-400" />
-                    ) : assignment.status === 'en_route' ? (
+                    ) : assignment.status === 'en_route' || assignment.status === 'ride_started' || assignment.status === 'near_destination' ? (
                       <Navigation className="w-5 h-5 text-yellow-400" />
                     ) : (
                       <Car className="w-5 h-5 text-blue-400" />

@@ -18,6 +18,7 @@ import ScreenBackground from '@/src/components/ScreenBackground';
 import Card from '@/src/components/Card';
 import { importFromBooking } from '@/src/firebase/callables';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 export default function BookingImportScreen() {
     const router = useRouter();
@@ -100,24 +101,24 @@ export default function BookingImportScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             className="flex-1"
         >
-            <ScrollView className="flex-1 px-2 pt-10 pb-10">
+            <ScrollView className="flex-1 p-1 pb-10">
                 <View className="p-2 flex-row items-center gap-3 bg-tics-amber/25 border border-tics-amber/10 rounded-full mb-4">
                     <Pressable
                      onPress={() => router.back()} 
                      style={{ height: 46, width: 46 }}
                      className="items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20">
-                        <Ionicons name="chevron-back" size={22} color="rgba(248,250,252,0.9)" />
+                        <Ionicons name="chevron-back" size={22} color="#fff" />
                     </Pressable>
                     <Pressable
                     style={{ height: 46, width: 46 }} 
                     className="items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20">
                         <Entypo name="book" size={20} color="#fff" />
                     </Pressable>
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[17px]">Import from booking</Text>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[17px]">Import from booking</SafeText>
                 </View>
 
                 <View>
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[13px] leading-5 mb-4">
+                    <Text style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[13px] leading-5 mb-4 px-1">
                         Paste a booking confirmation from Expedia, Booking.com, Kayak, Skyscanner, or any travel site. TICS will extract your trip details.
                     </Text>
                 </View>
@@ -127,8 +128,8 @@ export default function BookingImportScreen() {
                     <View className="flex-col items-start">
                         {/* <Ionicons name="globe" size={18} color="#F59E0B" style={{ marginTop: 2 }} /> */}
                         <View className="flex-1">
-                            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[12px] font-semibold">Supported booking sites</Text>
-                            <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-1 text-tics-muted text-[11px] leading-4">
+                            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[12px] font-semibold">Supported booking sites</SafeText>
+                            <Text style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-1 text-tics-muted text-[11px] leading-4">
                                 Expedia, Booking.com, Kayak, Skyscanner, Priceline, Orbitz, Travelocity, Hotels.com, Google Flights, Kiwi.com, and more.
                             </Text>
                         </View>
@@ -137,7 +138,7 @@ export default function BookingImportScreen() {
 
                 {/* From email (optional) */}
                 <View className="mt-5">
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] uppercase ml-2 mb-1">From Email (optional)</Text>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[10px] uppercase ml-2 mb-1">From Email (optional)</SafeText>
                     <TextInput
                         value={fromEmail}
                         onChangeText={setFromEmail}
@@ -145,30 +146,30 @@ export default function BookingImportScreen() {
                         placeholderTextColor="rgba(248,250,252,0.35)"
                         autoCapitalize="none"
                         keyboardType="email-address"
-                        className="border border-[#96C7B3]/50 bg-white/[0.06] rounded-full px-3 py-5 text-tics-text text-[14px]"
-                        style={{ fontFamily: 'Syne_500Medium' }}
+                        className="border border-tics-amber/30 bg-white/[0.06] rounded-full px-3 py-5 text-tics-text text-[14px]"
+                        style={{ fontFamily: 'ShareTech_400Regular' }}
                     />
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-1 ml-2 text-tics-muted text-[10px]">
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-1 ml-2 text-tics-muted text-[10px]">
                         Helps identify the booking provider. Not required.
-                    </Text>
+                    </SafeText>
                 </View>
 
                 {/* Subject input */}
                 <View className="mt-4">
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] uppercase ml-2 mb-1">Email Subject</Text>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[10px] uppercase ml-2 mb-1">Email Subject</SafeText>
                     <TextInput
                         value={subject}
                         onChangeText={setSubject}
                         placeholder="Paste the booking confirmation subject..."
                         placeholderTextColor="rgba(248,250,252,0.35)"
-                        className="border border-[#96C7B3]/50 bg-white/[0.06] rounded-full px-3 py-5 text-tics-text text-[14px]"
-                        style={{ fontFamily: 'Syne_500Medium' }}
+                        className="border border-tics-amber/30 bg-white/[0.06] rounded-full px-3 py-5 text-tics-text text-[14px]"
+                        style={{ fontFamily: 'ShareTech_400Regular' }}
                     />
                 </View>
 
                 {/* Body input */}
                 <View className="mt-4">
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] uppercase ml-2 mb-1">Email Body</Text>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[10px] uppercase ml-2 mb-1">Email Body</SafeText>
                     <TextInput
                         value={body}
                         onChangeText={setBody}
@@ -177,8 +178,8 @@ export default function BookingImportScreen() {
                         multiline
                         numberOfLines={10}
                         textAlignVertical="top"
-                        className="border border-[#96C7B3]/50 bg-white/[0.06] rounded-4xl px-3 py-4 text-tics-text text-[14px] min-h-[200px]"
-                        style={{ fontFamily: 'Syne_500Medium' }}
+                        className="border border-tics-amber/30 bg-white/[0.06] rounded-4xl px-3 py-4 text-tics-text text-[14px] min-h-[200px]"
+                        style={{ fontFamily: 'ShareTech_400Regular' }}
                     />
                 </View>
 
@@ -192,7 +193,7 @@ export default function BookingImportScreen() {
                         <ActivityIndicator color="#f59e0b" />
                     ) : (
                         <View className="flex-row items-center">
-                            <Text style={{ fontFamily: 'Syne_500Medium' }} className="ml-2 text-tics-text text-[15px]">Parse & Import Trip</Text>
+                            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="ml-2 text-tics-text text-[15px]">Parse & Import Trip</SafeText>
                         </View>
                     )}
                 </Pressable>
@@ -202,47 +203,47 @@ export default function BookingImportScreen() {
                     <Card accent="amber" className="mt-5 bg-tics-amber/10 border border-tics-amber/30 rounded-xl px-4 py-4">
                         <View className="flex-row items-center mb-3">
                             <Ionicons name="checkmark-circle" size={20} color="#f59e0b" />
-                            <Text style={{ fontFamily: 'Syne_500Medium' }} className="ml-2 text-tics-text text-[16px]">Booking Imported!</Text>
+                            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="ml-2 text-tics-text text-[16px]">Booking Imported!</SafeText>
                         </View>
                         <View className="gap-2">
-                            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[14px]">{parsedResult.title}</Text>
+                            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[14px]">{parsedResult.title}</SafeText>
                             {parsedResult.provider && (
                                 <View className="flex-row">
-                                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] w-20">Provider:</Text>
-                                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[12px]">{parsedResult.provider}</Text>
+                                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px] w-20">Provider:</SafeText>
+                                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[12px]">{parsedResult.provider}</SafeText>
                                 </View>
                             )}
                             <View className="flex-row">
-                                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] w-20">Route:</Text>
-                                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[12px]">{parsedResult.from} → {parsedResult.to}</Text>
+                                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px] w-20">Route:</SafeText>
+                                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[12px]">{parsedResult.from} → {parsedResult.to}</SafeText>
                             </View>
                             {parsedResult.airline && (
                                 <View className="flex-row">
-                                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] w-20">Airline:</Text>
-                                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[12px]">{parsedResult.airline}</Text>
+                                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px] w-20">Airline:</SafeText>
+                                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[12px]">{parsedResult.airline}</SafeText>
                                 </View>
                             )}
                             {parsedResult.flightNumber && (
                                 <View className="flex-row">
-                                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] w-20">Flight:</Text>
-                                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[12px]">{parsedResult.flightNumber}</Text>
+                                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px] w-20">Flight:</SafeText>
+                                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[12px]">{parsedResult.flightNumber}</SafeText>
                                 </View>
                             )}
                             {parsedResult.hotelName && (
                                 <View className="flex-row">
-                                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] w-20">Hotel:</Text>
-                                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[12px]">{parsedResult.hotelName}</Text>
+                                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px] w-20">Hotel:</SafeText>
+                                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[12px]">{parsedResult.hotelName}</SafeText>
                                 </View>
                             )}
                             {parsedResult.totalPrice && (
                                 <View className="flex-row">
-                                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] w-20">Price:</Text>
-                                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[12px]">${parsedResult.totalPrice}</Text>
+                                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px] w-20">Price:</SafeText>
+                                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[12px]">${parsedResult.totalPrice}</SafeText>
                                 </View>
                             )}
                             <View className="flex-row">
-                                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] w-20">Departs:</Text>
-                                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[12px]">{new Date(parsedResult.departureTime).toLocaleString()}</Text>
+                                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px] w-20">Departs:</SafeText>
+                                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[12px]">{new Date(parsedResult.departureTime).toLocaleString()}</SafeText>
                             </View>
                         </View>
 
@@ -250,7 +251,7 @@ export default function BookingImportScreen() {
                             onPress={handleDone}
                             className="mt-4 bg-tics-amber rounded-xl py-3 items-center"
                         >
-                            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-bg text-[14px]">Done — Back to trips</Text>
+                            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-bg text-[14px]">Done — Back to trips</SafeText>
                         </Pressable>
                     </Card>
                 )}

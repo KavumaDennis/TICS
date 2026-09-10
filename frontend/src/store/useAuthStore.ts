@@ -16,6 +16,8 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 import { ensureUserDoc, registerPushToken } from '@/src/firebase/callables';
 import { getFirebaseAuth, getFirebaseFirestore } from '@/src/firebase/firebaseApp';
@@ -37,6 +39,7 @@ type AuthState = {
 
   hydrate: () => Promise<void>;
   logout: () => Promise<void>;
+  autoLogin: () => Promise<boolean>;
 
   login: (email: string, password: string) => Promise<boolean>;
   register: (email: string, password: string, name?: string) => Promise<boolean>;
@@ -98,42 +101,75 @@ export const useAuthStore = create<AuthState>((set, get) => {
     user: null,
 
     hydrate: async () => {
-      const auth = getFirebaseAuth();
-      const db = getFirebaseFirestore();
+      console.log("hydrate() called");
 
-      return new Promise<void>((resolve) => {
-        if (authUnsub) authUnsub();
+      // Ensure hydration completes even if Firebase init fails.
+      // Without this guard the app blocks forever on the loading screen.
+      try {
+        const auth = getFirebaseAuth();
+        console.log("firebase auth instance", auth);
 
-        authUnsub = onAuthStateChanged(auth, async (u) => {
-          if (!u) {
-            set({ token: null, user: null, hydrated: true });
-            return resolve();
-          }
+        const db = getFirebaseFirestore();
 
-          try {
-            const snap = await getDoc(doc(db, 'users', u.uid));
-            const data = snap.data();
+        await new Promise<void>((resolve) => {
+          console.log("registering auth listener");
 
-            set({
-              token: u.uid,
-              user: toAuthUser(u, {
-                name: data?.name ?? u.displayName,
-                premium: Boolean(data?.premium),
-              }),
-            });
+          if (authUnsub) authUnsub();
 
-            await ensureUserDoc();
-          } catch {
-            set({
-              token: u.uid,
-              user: toAuthUser(u),
-            });
-          } finally {
+          // Timeout: if onAuthStateChanged never fires (e.g. production
+          // build anomaly), force-resolve after 10 seconds so the app
+          // doesn't hang.
+          const timeout = setTimeout(() => {
+            console.warn("[AUTH] onAuthStateChanged timed out – resolving anyway");
             set({ hydrated: true });
             resolve();
-          }
+          }, 10_000);
+
+          authUnsub = onAuthStateChanged(auth, async (u) => {
+            clearTimeout(timeout);
+            console.log("AUTH CALLBACK", u);
+
+            if (!u) {
+              // Try auto-login from stored credentials
+              try {
+                const autoLoggedIn = await get().autoLogin();
+                if (autoLoggedIn) {
+                  // onAuthStateChanged will fire again with the user
+                  return;
+                }
+              } catch {}
+              set({ token: null, user: null, hydrated: true });
+              return resolve();
+            }
+
+            try {
+              const snap = await getDoc(doc(db, 'users', u.uid));
+              const data = snap.data();
+
+              set({
+                token: u.uid,
+                user: toAuthUser(u, {
+                  name: data?.name ?? u.displayName,
+                  premium: Boolean(data?.premium),
+                }),
+              });
+
+              await ensureUserDoc();
+            } catch {
+              set({
+                token: u.uid,
+                user: toAuthUser(u),
+              });
+            } finally {
+              set({ hydrated: true });
+              resolve();
+            }
+          });
         });
-      });
+      } catch (err) {
+        console.error("[AUTH] onAuthStateChanged did not fire within 10 seconds. Continuing startup. Resolving anyway", err);
+        set({ hydrated: true, error: err instanceof Error ? err.message : String(err) });
+      }
     },
 
     login: async (email, password) => {
@@ -155,6 +191,16 @@ export const useAuthStore = create<AuthState>((set, get) => {
           user: toAuthUser(user),
           loading: false,
         });
+
+        // Persist credentials for auto-login on next app open
+        if (Platform.OS !== 'web') {
+          try {
+            await SecureStore.setItemAsync('tics_login_email', email.trim());
+            await SecureStore.setItemAsync('tics_login_password', password);
+          } catch (e) {
+            console.warn('[AUTH] Failed to persist credentials', e);
+          }
+        }
 
         return true;
       } catch (e: any) {
@@ -182,6 +228,16 @@ export const useAuthStore = create<AuthState>((set, get) => {
           user: toAuthUser(user, { name: name?.trim() ?? null }),
           loading: false,
         });
+
+        // Persist credentials for auto-login on next app open
+        if (Platform.OS !== 'web') {
+          try {
+            await SecureStore.setItemAsync('tics_login_email', email.trim());
+            await SecureStore.setItemAsync('tics_login_password', password);
+          } catch (e) {
+            console.warn('[AUTH] Failed to persist credentials', e);
+          }
+        }
 
         return true;
       } catch (e: any) {
@@ -222,12 +278,40 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
       try {
         await signOut(getFirebaseAuth());
+        // Clear stored credentials on logout
+        if (Platform.OS !== 'web') {
+          try {
+            await SecureStore.deleteItemAsync('tics_login_email');
+            await SecureStore.deleteItemAsync('tics_login_password');
+          } catch {}
+        }
       } finally {
         set({
           token: null,
           user: null,
           loading: false,
         });
+      }
+    },
+
+    autoLogin: async () => {
+      // Try to restore credentials from SecureStore
+      if (Platform.OS === 'web') return false;
+      try {
+        const savedEmail = await SecureStore.getItemAsync('tics_login_email');
+        const savedPassword = await SecureStore.getItemAsync('tics_login_password');
+        if (!savedEmail || !savedPassword) return false;
+
+        const auth = getFirebaseAuth();
+        await signInWithEmailAndPassword(auth, savedEmail, savedPassword);
+        return true;
+      } catch {
+        // Clean up stale credentials
+        try {
+          await SecureStore.deleteItemAsync('tics_login_email');
+          await SecureStore.deleteItemAsync('tics_login_password');
+        } catch {}
+        return false;
       }
     },
 

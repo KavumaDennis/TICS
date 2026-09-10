@@ -1107,138 +1107,187 @@ export const onFlightMonitoringUpdate = onDocumentUpdated('flight_monitoring/{tr
 });
 
 export { notifyAssignmentCreated, notifyAssignmentUpdated } from './assignmentNotifications';
-export const assistantChat = onCall({ secrets: [GEMINI_API_KEY] }, async (req) => {
-  const uid = req.auth?.uid;
-  if (!uid) throw new HttpsError('unauthenticated', 'Sign in required.');
+export { generateDestinationRecommendations, logDestinationInteraction } from './destinationRecommendations';
+export const assistantChat = onCall(
+  { secrets: [GEMINI_API_KEY] },
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) throw new HttpsError('unauthenticated', 'Sign in required.');
 
-  const message = String((req.data as any)?.message ?? '').trim();
-  const tripId: string | null = (req.data as any)?.tripId ?? null;
-  const history = Array.isArray((req.data as any)?.history) ? (req.data as any).history : [];
+    const message = String((req.data as any)?.message ?? '').trim();
+    const conversationId: string | null = (req.data as any)?.conversationId ?? null;
+    const tripId: string | null = (req.data as any)?.tripId ?? null;
 
-  if (!message) throw new HttpsError('invalid-argument', 'Message is required.');
-  if (message.length > 2000) throw new HttpsError('invalid-argument', 'Message too long.');
+    if (!message) throw new HttpsError('invalid-argument', 'Message is required.');
+    if (message.length > 2000) throw new HttpsError('invalid-argument', 'Message too long.');
 
-  // Load trip context
-  let tripContext = '';
-  if (tripId) {
-    const [tripSnap, alertsSnap, recSnap, flightSnap, weatherSnap] = await Promise.all([
-      db.collection('trips').doc(tripId).get(),
-      db.collection('alerts').where('tripId', '==', tripId).where('active', '==', true).limit(5).get(),
-      db.collection('recommendations').where('tripId', '==', tripId).limit(5).get(),
-      db.collection('flight_monitoring').doc(tripId).get(),
-      db.collection('weather_monitoring').doc(tripId).get(),
-    ]);
+    // ─── Import context builders ───────────────────────────────────────
+    const {
+      buildAssistantContext,
+      buildSystemPromptFromContext,
+      getUserMemory,
+      saveUserMemory,
+      getConversationHistory,
+      createConversation,
+      archiveConversation,
+      updateConversationSummary,
+      incrementMessageCount,
+    } = await import('./assistant/context');
 
-    if (tripSnap.exists && (tripSnap.data() as TripDoc).userId === uid) {
-      const trip = tripSnap.data() as TripDoc;
-      const flight = flightSnap.data() as FlightDoc | undefined;
-      const weather = weatherSnap.data() as any;
+    // ─── Resolve conversation ID ───────────────────────────────────────
+    const effectiveConvId = conversationId ?? `conv_${uid}_${Date.now()}`;
+    const isNewConversation = !conversationId;
 
-      const parts = [
-        `Trip: "${trip.title}" | ${trip.from} → ${trip.to}`,
-        `Flight: ${trip.flightNumber ?? 'N/A'} | Airline: ${trip.airline ?? 'N/A'}`,
-        `Departs: ${trip.departureTime} | Arrives: ${trip.arrivalTime}`,
-        `Status: ${trip.monitoringStatus ?? 'unknown'}`,
-        flight ? `Flight status: ${flight.status} | Delay: ${flight.delayMinutes ?? 0}min | Gate: ${flight.gate ?? 'TBC'} | Terminal: ${flight.terminal ?? 'TBC'}` : '',
-        weather?.current?.temp != null ? `Weather at destination: ${Math.round(weather.current.temp)}°C, ${weather.current.weather?.[0]?.description ?? ''}` : '',
-        alertsSnap.docs.length ? `Active alerts: ${alertsSnap.docs.map((d) => (d.data() as AlertDoc).title).join('; ')}` : 'No active alerts.',
-        recSnap.docs.length ? `Recent recommendations: ${recSnap.docs.map((d) => (d.data() as RecommendationDoc).title).join('; ')}` : '',
-      ].filter(Boolean);
-
-      tripContext = parts.join('\n');
+    // If this is a new conversation, archive any old active ones and create new
+    if (isNewConversation) {
+      await createConversation(uid, effectiveConvId, tripId);
     }
-  }
 
-  const conversationId = tripId ? `${uid}_${tripId}` : `${uid}_general`;
-  const msgCol = db.collection('assistant_conversations').doc(conversationId).collection('assistant_messages');
+    // ─── Save user message to new structure ────────────────────────────
+    const msgCol = db
+      .collection('users')
+      .doc(uid)
+      .collection('conversations')
+      .doc(effectiveConvId)
+      .collection('messages');
 
-  await msgCol.add({ role: 'user', text: message, uid, tripId, createdAt: FieldValue.serverTimestamp() });
-
-  const systemText = 'You are TICS, a smart real-time travel intelligence assistant. Be concise, actionable, and specific. Reference real trip data. Never invent flight statuses. If unsure, say so and suggest checking the airline app.';
-
-  const geminiHistory = history.slice(-8).map((h: any) => ({
-    role: h.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: String(h.text) }],
-  }));
-
-  const contents = [
-    ...geminiHistory,
-    {
+    await msgCol.add({
       role: 'user',
-      parts: [{ text: tripContext ? `[Trip context]\n${tripContext}\n\n[User message]\n${message}` : message }],
-    },
-  ];
+      content: message,
+      timestamp: FieldValue.serverTimestamp(),
+    });
 
-  const apiKey = GEMINI_API_KEY.value() || process.env.GEMINI_API_KEY || '';
-  let answer = 'I\'m having trouble connecting right now. Please try again.';
+    // Also write to legacy collection for backward compat
+    // Use the effectiveConvId so the frontend listener picks up the messages
+    const legacyMsgCol = db
+      .collection('assistant_conversations')
+      .doc(effectiveConvId)
+      .collection('assistant_messages');
+    await legacyMsgCol.add({
+      role: 'user',
+      text: message,
+      uid,
+      tripId,
+      createdAt: FieldValue.serverTimestamp(),
+    });
 
-  if (apiKey) {
-    // Try models in order of preference, with fallback
-    // gemini-2.0-flash-exp is the latest stable, gemini-1.5-flash is the reliable fallback
-    const modelsToTry = [
-      'gemini-2.5-flash',
-      'gemini-2.5-flash-lite',
+    await incrementMessageCount(uid, effectiveConvId);
+
+    // ─── Build rich context ────────────────────────────────────────────
+    const context = await buildAssistantContext(uid, effectiveConvId);
+
+    // Get recent messages from new structure
+    const recentHistory = await getConversationHistory(uid, effectiveConvId, 10);
+
+    // Build smart system prompt
+    const systemText = buildSystemPromptFromContext(context);
+
+    // ─── Prepare Gemini payload ────────────────────────────────────────
+    const geminiHistory = recentHistory
+      .slice(-8)
+      .map((h: any) => ({
+        role: h.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: String(h.text) }],
+      }));
+
+    const contents = [
+      ...geminiHistory,
+      {
+        role: 'user',
+        parts: [{ text: message }],
+      },
     ];
 
-    let lastError = '';
+    // ─── Call Gemini ──────────────────────────────────────────────────
+    const apiKey = GEMINI_API_KEY.value() || process.env.GEMINI_API_KEY || '';
+    let answer = 'I\'m having trouble connecting right now. Please try again.';
 
-    for (const model of modelsToTry) {
-      try {
-        const resp = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              system_instruction: { parts: [{ text: systemText }] },
-              contents,
-              generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
-            }),
-          },
-        );
+    if (apiKey) {
+      const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+      let lastError = '';
 
-        if (resp.ok) {
-          const json = await resp.json();
-          const extracted = extractGeminiText(json);
-          if (extracted) {
-            answer = extracted;
-            logger.info(`assistantChat: ${model} succeeded`);
-            break; // Success — stop trying fallback models
-          }
-        } else {
-          const errorText = await resp.text();
-          lastError = `${model} returned ${resp.status}: ${errorText.substring(0, 200)}`;
-          logger.warn(`assistantChat: ${lastError}`);
-          // 401/403 = auth issue, no point trying other models
-          if (resp.status === 401 || resp.status === 403) {
-            lastError = 'API key is invalid or Generative Language API is not enabled. Go to Google Cloud Console → APIs & Services → Enable "Generative Language API".';
+      for (const model of modelsToTry) {
+        try {
+          const resp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                system_instruction: { parts: [{ text: systemText }] },
+                contents,
+                generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+              }),
+            },
+          );
+
+          if (resp.ok) {
+            const json = await resp.json();
+            const extracted = extractGeminiText(json);
+            if (extracted) {
+              answer = extracted;
+              logger.info(`assistantChat: ${model} succeeded`);
+              break;
+            }
+          } else {
+            const errorText = await resp.text();
+            lastError = `${model} returned ${resp.status}: ${errorText.substring(0, 200)}`;
+            logger.warn(`assistantChat: ${lastError}`);
+            if (resp.status === 401 || resp.status === 403) {
+              lastError = 'API key is invalid or Generative Language API is not enabled.';
+              break;
+            }
+            if (resp.status === 404) continue;
+            if (resp.status >= 500) continue;
             break;
           }
-          // 404 = model not found, try next
-          if (resp.status === 404) continue;
-          // Other server errors — try next model
-          if (resp.status >= 500) continue;
-          break;
+        } catch (e: any) {
+          lastError = `${model} threw: ${e?.message ?? 'Unknown error'}`;
+          logger.warn(`assistantChat: ${lastError}`);
+          continue;
         }
-      } catch (e: any) {
-        lastError = `${model} threw: ${e?.message ?? 'Unknown error'}`;
-        logger.warn(`assistantChat: ${lastError}`);
-        continue; // Network error — try next model
       }
+
+      if (answer === 'I\'m having trouble connecting right now. Please try again.') {
+        const errorMsg = lastError || 'All Gemini models failed';
+        logger.error(`assistantChat: all models exhausted — ${errorMsg}`);
+        answer = `⚠️ ${errorMsg}.`;
+      }
+    } else {
+      answer = '⚠️ Gemini API key is not configured.';
     }
 
-    if (answer === 'I\'m having trouble connecting right now. Please try again.') {
-      const errorMsg = lastError || 'All Gemini models failed';
-      logger.error(`assistantChat: all models exhausted — ${errorMsg}`);
-      answer = `⚠️ ${errorMsg}. Please check that the Generative Language API is enabled in your Google Cloud Console and that your API key is valid.`;
-    }
-  } else {
-    answer = '⚠️ Gemini API key is not configured. Please set GEMINI_API_KEY in your Firebase environment or .env file.';
-  }
+    // ─── Save assistant response ──────────────────────────────────────
+    await msgCol.add({
+      role: 'assistant',
+      content: answer,
+      timestamp: FieldValue.serverTimestamp(),
+    });
 
-  await msgCol.add({ role: 'assistant', text: answer, uid, tripId, createdAt: FieldValue.serverTimestamp() });
-  return { answer, conversationId };
-});
+    // Also write to legacy collection
+    await legacyMsgCol.add({
+      role: 'assistant',
+      text: answer,
+      uid,
+      tripId,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    await incrementMessageCount(uid, effectiveConvId);
+
+    // ─── Periodically update conversation summary ─────────────────────
+    const currentCount = context.recentTrips.length;
+    if (currentCount > 0 && currentCount % 5 === 0) {
+      // For now just store last message as summary
+      await updateConversationSummary(uid, effectiveConvId, message, answer);
+    }
+
+    return {
+      answer,
+      conversationId: effectiveConvId,
+    };
+  },
+);
 
 /* ─── Email Sync callable ─────────────────────────────────────────────────── */
 

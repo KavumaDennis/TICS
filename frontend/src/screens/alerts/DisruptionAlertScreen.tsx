@@ -23,6 +23,7 @@ import { useSaveStore } from '@/src/store/saveStore';
 import { useAssistantStore } from '@/src/store/assistantStore';
 import { generateShareUpdate } from '@/src/firebase/callables';
 import { useAlertModal } from '@/src/components/AlertModal';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 const SEV = {
   critical: { color: '#EF4444', bg: 'rgba(239,68,68,0.35)', border: 'rgba(239,68,68,0.25)', icon: 'alert-circle' as const, label: 'CRITICAL' },
@@ -46,8 +47,8 @@ const SOURCE_LABEL: Record<string, string> = {
 function InfoRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' }}>
-      <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 12 }}>{label}</Text>
-      <Text style={{ fontFamily: 'Syne_600SemiBold', color: color ?? '#f8fafc', fontSize: 13, maxWidth: '60%', textAlign: 'right' }}>{value}</Text>
+      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 12 }}>{label}</SafeText>
+      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: color ?? '#f8fafc', fontSize: 13, maxWidth: '60%', textAlign: 'right' }}>{value}</SafeText>
     </View>
   );
 }
@@ -94,7 +95,8 @@ export default function DisruptionAlertScreen() {
       const { shareText } = await generateShareUpdate(trip.id);
       await Share.share({ message: shareText, title: `TICS: ${trip.title}` });
     } catch {
-      await Share.share({ message: `${alert?.title ?? 'Alert'}\n${alert?.message ?? ''}\n\nShared via TICS`, title: alert?.title ?? 'TICS Alert' }).catch(() => { });
+      const fallback = [`📍 ${trip?.title || 'Trip'}`, `${alert?.title || 'Alert'}`, alert?.message || '', '', 'Powered by TICS'].filter(Boolean).join('\n');
+      await Share.share({ message: fallback, title: alert?.title ?? 'TICS Alert' }).catch(() => { });
     } finally { setSharing(false); }
   }
 
@@ -111,23 +113,23 @@ export default function DisruptionAlertScreen() {
   if (!alert) {
     return (
       <View
-        style={{ flex: 1, backgroundColor: '#0a0b1e', paddingTop: insets.top + 16, paddingHorizontal: 16 }}
+        style={{ flex: 1, backgroundColor: '#0a0b1e', }}
         className='bg-tics-amber/25 border border-tics-amber/10 rounded-full p-2'
       >
         <Pressable onPress={() => router.back()} style={{ width: 46, height: 46, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
-          <Ionicons name="chevron-back" size={20} color="rgba(248,250,252,0.9)" />
+          <Ionicons name="chevron-back" size={20} color="#96C7B3" />
         </Pressable>
         <View style={{ alignItems: 'center', paddingTop: 40 }}>
           <Ionicons name="notifications-off-outline" size={48} color="rgba(148,163,184,0.25)" />
-          <Text style={{ fontFamily: 'Syne_600SemiBold', color: '#94a3b8', fontSize: 15, marginTop: 16 }}>Alert not found</Text>
-          <Text style={{ fontFamily: 'Syne_500Medium', color: '#475569', fontSize: 12, marginTop: 8, textAlign: 'center' }}>This alert may have been resolved or cleared. Return to Alerts Center to see current alerts.</Text>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 15, marginTop: 16 }}>Alert not found</SafeText>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#475569', fontSize: 12, marginTop: 8, textAlign: 'center' }}>This alert may have been resolved or cleared. Return to Alerts Center to see current alerts.</SafeText>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0a0b1e', paddingTop: insets.top + 8 }}>
+    <View className='p-1' style={{ flex: 1, backgroundColor: '#0a0b1e', }}>
       {alertModal}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}
         className='bg-tics-amber/25 border border-tics-amber/10 rounded-full p-2 gap-2 mb-3'
@@ -136,7 +138,7 @@ export default function DisruptionAlertScreen() {
           className='bg-tics-amber/35 border border-tics-amber/20 rounded-full'
           onPress={() => router.back()}
           style={{ width: 46, height: 46, alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="chevron-back" size={20} color="rgba(248,250,252,0.9)" />
+          <Ionicons name="chevron-back" size={20} color="#96C7B3" />
         </Pressable>
         <LinearGradient
           colors={[cfg.bg.replace('0.10', '0.22'), cfg.bg.replace('0.10', '0.06')] as [string, string]}
@@ -146,27 +148,27 @@ export default function DisruptionAlertScreen() {
           <Ionicons name={cfg.icon} size={20} color={cfg.color} />
         </LinearGradient>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontFamily: 'Syne_700Bold', color: cfg.color, fontSize: 10, letterSpacing: 1 }}>{catLabel.toUpperCase()} · {cfg.label}</Text>
-          <Text style={{ fontFamily: 'Syne_500Medium', color: '#64748b', fontSize: 11 }} numberOfLines={1}>{trip?.title ?? 'Your trip'}</Text>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: cfg.color, fontSize: 10, letterSpacing: 1 }}>{catLabel.toUpperCase()} · {cfg.label}</SafeText>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#64748b', fontSize: 11 }} numberOfLines={1}>{trip?.title ?? 'Your trip'}</SafeText>
         </View>
         {!alert.read && (<View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: cfg.color }} />)}
       </View>
 
-      <ScrollView contentContainerStyle={{ gap: 14, paddingHorizontal: 8, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
+      <ScrollView className='px-1' contentContainerStyle={{ gap: 14, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
         <View className='rounded-4xl' style={{ backgroundColor: cfg.bg, borderWidth: 1, borderColor: cfg.border, padding: 20, overflow: 'hidden' }}>
           {/* <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, backgroundColor: cfg.color }} /> */}
-          <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 20, lineHeight: 28, marginTop: 4 }}>{alert.title}</Text>
-          <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 14, lineHeight: 22, marginTop: 10 }}>{alert.message}</Text>
-          <Text style={{ fontFamily: 'Syne_500Medium', color: 'rgba(100,116,139,0.7)', fontSize: 11, marginTop: 12 }}>{timeLabel}</Text>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 20, lineHeight: 28, marginTop: 4 }}>{alert.title}</SafeText>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 14, lineHeight: 22, marginTop: 10 }}>{alert.message}</SafeText>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: 'rgba(100,116,139,0.7)', fontSize: 11, marginTop: 12 }}>{timeLabel}</SafeText>
         </View>
 
         {alert.recommendation && (
           <View className='rounded-4xl p-5' style={{ borderWidth: 1, borderColor: 'rgba(251,191,36,0.10)', backgroundColor: 'rgba(251,191,36,0.15)' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <Ionicons name="bulb-outline" size={16} color="#FBBF24" />
-              <Text style={{ fontFamily: 'Syne_600SemiBold', color: '#FBBF24', fontSize: 11, letterSpacing: 0.8 }}>RECOMMENDED ACTION</Text>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#FBBF24', fontSize: 11, letterSpacing: 0.8 }}>RECOMMENDED ACTION</SafeText>
             </View>
-            <Text style={{ fontFamily: 'Syne_500Medium', color: '#f8fafc', fontSize: 13, lineHeight: 20 }}>{alert.recommendation}</Text>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 13, lineHeight: 20 }}>{alert.recommendation}</SafeText>
           </View>
         )}
 
@@ -174,7 +176,7 @@ export default function DisruptionAlertScreen() {
           <View className='rounded-4xl' style={{ borderWidth: 1, borderColor: 'rgba(59,130,246,0.10)', backgroundColor: 'rgba(59,130,246,0.15)', padding: 16 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <Ionicons name="airplane-outline" size={15} color="#60A5FA" />
-              <Text style={{ fontFamily: 'Syne_600SemiBold', color: '#60A5FA', fontSize: 11, letterSpacing: 0.8 }}>LIVE FLIGHT STATUS</Text>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#60A5FA', fontSize: 11, letterSpacing: 0.8 }}>LIVE FLIGHT STATUS</SafeText>
             </View>
             <InfoRow label="Flight" value={`${trip?.flightNumber ?? '—'}${trip?.airline ? ' · ' + trip.airline : ''}`} />
             <InfoRow label="Status" value={flight.status.charAt(0).toUpperCase() + flight.status.slice(1)} color={flight.status === 'active' ? '#22C55E' : flight.status === 'canceled' ? '#EF4444' : '#94a3b8'} />
@@ -188,7 +190,7 @@ export default function DisruptionAlertScreen() {
           <View className='rounded-4xl' style={{ borderWidth: 1, borderColor: 'rgba(249,115,22,0.10)', backgroundColor: 'rgba(249,115,22,0.15)', padding: 16 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <Ionicons name="partly-sunny-outline" size={15} color="#F97316" />
-              <Text style={{ fontFamily: 'Syne_600SemiBold', color: '#F97316', fontSize: 11, letterSpacing: 0.8 }}>LIVE WEATHER CONDITIONS</Text>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#F97316', fontSize: 11, letterSpacing: 0.8 }}>LIVE WEATHER CONDITIONS</SafeText>
             </View>
             <InfoRow label="Location" value={weather.label} />
             {weather.description && (<InfoRow label="Conditions" value={weather.description.charAt(0).toUpperCase() + weather.description.slice(1)} />)}
@@ -196,8 +198,8 @@ export default function DisruptionAlertScreen() {
             {weather.windKph != null && <InfoRow label="Wind" value={`${weather.windKph} km/h`} />}
             <View style={{ marginTop: 10 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
-                <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 11 }}>Disruption risk</Text>
-                <Text style={{ fontFamily: 'Syne_700Bold', color: weather.riskScore >= 6 ? '#EF4444' : weather.riskScore >= 3 ? '#F59E0B' : '#22C55E', fontSize: 11 }}>{weather.riskScore}/10</Text>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 11 }}>Disruption risk</SafeText>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: weather.riskScore >= 6 ? '#EF4444' : weather.riskScore >= 3 ? '#F59E0B' : '#22C55E', fontSize: 11 }}>{weather.riskScore}/10</SafeText>
               </View>
               <View style={{ height: 5, borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
                 <View style={{ width: `${weather.riskScore * 10}%`, height: '100%', backgroundColor: weather.riskScore >= 6 ? '#EF4444' : weather.riskScore >= 3 ? '#F59E0B' : '#22C55E', borderRadius: 99 }} />
@@ -208,7 +210,7 @@ export default function DisruptionAlertScreen() {
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 2 }}>
           <Ionicons name="shield-checkmark-outline" size={13} color="rgba(100,116,139,0.5)" />
-          <Text style={{ fontFamily: 'Syne_500Medium', color: '#334155', fontSize: 11 }}>Source: {SOURCE_LABEL[alert.source ?? 'system'] ?? 'TICS Monitoring'} · {catLabel}</Text>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#334155', fontSize: 11 }}>Source: {SOURCE_LABEL[alert.source ?? 'system'] ?? 'TICS Monitoring'} · {catLabel}</SafeText>
         </View>
 
         <View style={{ gap: 10 }}>
@@ -222,7 +224,7 @@ export default function DisruptionAlertScreen() {
             className='rounded-full p-6'
             style={{ borderWidth: 1, borderColor: cfg.border, backgroundColor: cfg.bg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
             <Ionicons name="sparkles-outline" size={18} color={cfg.color} />
-            <Text style={{ fontFamily: 'Syne_700Bold', color: cfg.color, fontSize: 13 }}>Ask AI about this alert</Text>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: cfg.color, fontSize: 13 }}>Ask AI about this alert</SafeText>
           </Pressable>
 
           <Pressable
@@ -235,23 +237,23 @@ export default function DisruptionAlertScreen() {
             className='rounded-full p-6'
             style={{ borderWidth: 1, borderColor: 'rgba(34,197,94,0.1)', backgroundColor: 'rgba(34,197,94,0.30)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
             <Ionicons name="compass-outline" size={18} color="#22C55E" />
-            <Text style={{ fontFamily: 'Syne_700Bold', color: '#22C55E', fontSize: 13 }}>Ask AI for destination tips</Text>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#22C55E', fontSize: 13 }}>Ask AI for destination tips</SafeText>
           </Pressable>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
             <Pressable className='border border-tics-amber/20 bg-tics-amber/35 p-6 rounded-full flex-1' onPress={handleShare} disabled={sharing} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
               {sharing ? <ActivityIndicator size={16} color="rgba(248,250,252,0.7)" /> : <Ionicons name="share-social-outline" size={18} color="rgba(248,250,252,0.7)" />}
-              <Text style={{ fontFamily: 'Syne_700Bold', color: 'rgba(248,250,252,0.8)', fontSize: 13 }}>{sharing ? 'Generating update…' : 'Share trip update'}</Text>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: 'rgba(248,250,252,0.8)', fontSize: 13 }}>{sharing ? 'Generating update…' : 'Share trip update'}</SafeText>
             </Pressable>
-            <Pressable className='border border-[#96C7B3]/10 bg-white/[0.06] p-6 rounded-full self-start' onPress={handleToggleSave} disabled={saving} style={{ backgroundColor: alreadySaved ? 'rgba(34,197,94,0.30)' : 'rgb(255 255 255 / 0.06)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+            <Pressable className='border border-tics-amber/40 bg-white/[0.06] p-6 rounded-full self-start' onPress={handleToggleSave} disabled={saving} style={{ backgroundColor: alreadySaved ? 'rgba(34,197,94,0.30)' : 'rgb(255 255 255 / 0.06)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
               {saving ? <ActivityIndicator size={16} color="rgba(148,163,184,0.6)" /> : <Ionicons name={alreadySaved ? 'bookmark' : 'bookmark-outline'} size={18} color={alreadySaved ? '#22C55E' : 'rgba(148,163,184,0.6)'} />}
 
             </Pressable>
           </View>
           {trip && (
             <Pressable className='border border-tics-amber/20 bg-tics-amber/35 p-6 rounded-full' onPress={() => router.push(({ pathname: `/monitoring/${trip.id}` } as any))} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-              <Ionicons name="pulse-outline" size={18} color="#fff" />
-              <Text className='text-tics-text' style={{ fontFamily: 'Syne_500Medium', fontSize: 13 }}>View monitoring dashboard</Text>
+              <Ionicons name="pulse-outline" size={18} color="rgba(226,232,240,0.72)" />
+              <SafeText className='text-tics-muted' style={{ fontFamily: 'ShareTech_400Regular', fontSize: 13 }}>View monitoring dashboard</SafeText>
             </Pressable>
           )}
         </View>

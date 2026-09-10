@@ -7,6 +7,7 @@
  * - Share button: generates dynamic update via Cloud Function
  * - Refresh button: triggers full monitoring cycle
  */
+import { airlineName } from '@/src/utils/airlineDisplay';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -31,6 +32,7 @@ import { useAuthStore } from '@/src/store/useAuthStore';
 import { useTripStatus } from '@/src/hooks/useTripStatus';
 import { refreshTripMonitoring, generateShareUpdate } from '@/src/firebase/callables';
 import { useAlertModal } from '@/src/components/AlertModal';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 type TabKey = 'overview' | 'flight' | 'connections';
 
@@ -55,13 +57,13 @@ function formatMins(mins: number): string {
 
 function InfoRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
-    <View className="flex-row items-center justify-between rounded-full border border-[#96C7B3]/50 bg-white/[0.06] p-5">
-      <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px]">
+    <View className="flex-row items-center justify-between rounded-full border border-tics-amber/50 bg-white/[0.06] p-5">
+      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px]">
         {label}
-      </Text>
-      <Text style={{ fontFamily: 'Syne_600SemiBold', color: valueColor ?? 'rgba(248,250,252,0.9)' }} className="text-[13px]">
+      </SafeText>
+      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: valueColor ?? 'rgba(248,250,252,0.9)' }} className="text-[13px]">
         {value}
-      </Text>
+      </SafeText>
     </View>
   );
 }
@@ -69,9 +71,9 @@ function InfoRow({ label, value, valueColor }: { label: string; value: string; v
 function StatusBadge({ value, positive }: { value: string; positive: boolean }) {
   return (
     <View className={['rounded-full border px-3 py-1', positive ? 'border-tics-green/35 bg-tics-green/15' : 'border-tics-amber/35 bg-tics-amber/15'].join(' ')}>
-      <Text style={{ fontFamily: 'Syne_500Medium' }} className={['text-[11px]', positive ? 'text-tics-green' : 'text-tics-amber'].join(' ')}>
+      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className={['text-[11px]', positive ? 'text-tics-green' : 'text-tics-amber'].join(' ')}>
         {value}
-      </Text>
+      </SafeText>
     </View>
   );
 }
@@ -88,10 +90,10 @@ function WeatherRiskBar({ score }: { score: number }) {
   const color = riskColor(score);
   const label = score >= 7 ? 'Severe' : score >= 4 ? 'Moderate' : score >= 2 ? 'Mild' : 'Clear';
   return (
-    <View className="mt-3">
+    <View className="mt-3 px-2">
       <View className="flex-row items-center justify-between mb-1">
-        <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px]">Weather risk</Text>
-        <Text style={{ fontFamily: 'Syne_700Bold', color, fontSize: 11 }}>{label} ({score}/10)</Text>
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[11px]">Weather risk</SafeText>
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular', color, fontSize: 11 }}>{label} ({score}/10)</SafeText>
       </View>
       <View className="h-2 rounded-full bg-white/10 border border-tics-amber/10 overflow-hidden">
         <View style={{ width: `${score * 10}%`, height: '100%', backgroundColor: color, borderRadius: 99 }} />
@@ -161,7 +163,11 @@ export default function TravelMonitoringScreen() {
       await refreshTripMonitoring(trip.id);
       showAlertModal('Updated', 'Weather, flight and alerts refreshed.', [{ text: 'OK', style: 'primary' }]);
     } catch (e: any) {
-      showAlertModal('Refresh failed', e?.message ?? 'Please try again.', [{ text: 'OK', style: 'primary' }]);
+      if (e?.message === 'Unavailable' || e?.code === 'unavailable') {
+        showAlertModal('Refresh limited', 'Could not reach server. Showing cached data.', [{ text: 'OK', style: 'primary' }]);
+      } else {
+        showAlertModal('Refresh failed', e?.message ?? 'Please try again.', [{ text: 'OK', style: 'primary' }]);
+      }
     } finally {
       setRefreshing(false);
     }
@@ -174,7 +180,8 @@ export default function TravelMonitoringScreen() {
       const { shareText } = await generateShareUpdate(trip.id);
       await Share.share({ message: shareText, title: trip.title });
     } catch (e: any) {
-      showAlertModal('Share failed', e?.message ?? 'Could not generate share update.', [{ text: 'OK', style: 'primary' }]);
+      const fallback = [`📍 ${trip?.title || 'Trip'}`, `From: ${trip?.from || 'Origin'} → To: ${trip?.to || 'Destination'}`, '', 'Powered by TICS'].filter(Boolean).join('\n');
+      try { await Share.share({ message: fallback, title: trip?.title ?? 'TICS Trip' }); } catch { }
     } finally {
       setSharing(false);
     }
@@ -184,487 +191,491 @@ export default function TravelMonitoringScreen() {
     const active = tab === key;
     return (
       <Pressable key={key} onPress={() => setTab(key)} className={['rounded-full p-4 px-5 border border-tics-amber/20', active ? 'bg-tics-amber/35' : ''].join(' ')}>
-        <Text style={{ fontFamily: 'Syne_500Medium' }} className={['text-center text-[12px]', active ? 'text-tics-text' : 'text-tics-muted'].join(' ')}>
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className={['text-center text-[12px]', active ? 'text-tics-text' : 'text-tics-muted'].join(' ')}>
           {label}
-        </Text>
+        </SafeText>
       </Pressable>
     );
   }
 
   return (
-    <View className="flex-1" style={{ paddingTop: insets.top + 8 }}>
+    <>
+      <View className="flex-1 p-1">
 
-      {alertModal}
+        {alertModal}
 
-      {/* ── Header ── */}
-      <View className="p-2 flex-row items-center justify-between gap-3 bg-tics-amber/25 border border-tics-amber/10 rounded-full mb-3">
-        <Pressable
-          onPress={() => router.back()}
-          style={{ height: 46, width: 46 }}
-          className="items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20">
-          <Ionicons name="chevron-back" size={20} color="rgba(248,250,252,0.9)" />
-        </Pressable>
-
-        <View className="items-center">
-          <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-text text-[17px]">
-            Travel Monitoring
-          </Text>
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-0.5 text-tics-muted text-[11px]">
-            {trip?.airline ?? trip?.flightNumber ?? 'Flight tracking'}
-          </Text>
-        </View>
-
-        <View className="flex-row gap-2">
-          {/* Share */}
+        {/* ── Header ── */}
+        <View className="p-2 flex-row items-center justify-between gap-3 bg-tics-amber/25 border border-tics-amber/10 rounded-full mb-3">
           <Pressable
-            onPress={handleShare}
-            disabled={sharing}
+            onPress={() => router.back()}
             style={{ height: 46, width: 46 }}
             className="items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20">
-            {sharing
-              ? <ActivityIndicator size={14} color="rgba(248,250,252,0.75)" />
-              : <Ionicons name="share-social-outline" size={17} color="#fff" />}
+            <Ionicons name="chevron-back" size={20} color="rgba(248,250,252,0.9)" />
           </Pressable>
-          {/* Refresh */}
-          <Pressable
-            onPress={handleRefresh}
-            disabled={refreshing}
-            style={{ height: 46, width: 46 }}
-            className="items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20">
-            {refreshing
-              ? <ActivityIndicator size={14} color="#000" />
-              : <Ionicons name="refresh" size={17} color="#fff" />}
-          </Pressable>
+
+          <View className="items-center flex-1 px-2">
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[16px]" numberOfLines={1} ellipsizeMode="tail">
+              Travel Monitoring
+            </SafeText>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-0.5 text-tics-muted text-[11px]" numberOfLines={1} ellipsizeMode="tail">
+              {airlineName(trip?.airline) || trip?.flightNumber || 'Flight tracking'}
+            </SafeText>
+          </View>
+
+          <View className="flex-row gap-2">
+            {/* Share */}
+            <Pressable
+              onPress={handleShare}
+              disabled={sharing}
+              style={{ height: 46, width: 46 }}
+              className="items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20">
+              {sharing
+                ? <ActivityIndicator size={14} color="rgba(248,250,252,0.75)" />
+                : <Ionicons name="share-social-outline" size={17} color="#fff" />}
+            </Pressable>
+            {/* Refresh */}
+            <Pressable
+              onPress={handleRefresh}
+              disabled={refreshing}
+              style={{ height: 46, width: 46 }}
+              className="items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20">
+              {refreshing
+                ? <ActivityIndicator size={14} color="#000" />
+                : <Ionicons name="refresh" size={17} color="#fff" />}
+            </Pressable>
+          </View>
         </View>
-      </View>
 
-      {/* ── Tab pills ── */}
-      <View className="flex-row gap-2 px-2 mb-4">
-        {Pill('overview', 'Overview')}
-        {Pill('flight', 'Flight')}
-        {Pill('connections', 'Connections')}
-      </View>
+        {/* ── Tab pills ── */}
+        <View className="flex-row gap-2 px-1 mb-4">
+          {Pill('overview', 'Overview')}
+          {Pill('flight', 'Flight')}
+          {Pill('connections', 'Connections')}
+        </View>
 
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 112, gap: 16, paddingHorizontal: 8 }}
-        showsVerticalScrollIndicator={false}
-      >
+        <ScrollView
+          contentContainerStyle={{ gap: 16 }}
+          showsVerticalScrollIndicator={false}
+          className="px-1"
+        >
 
-        {/* ══════════════════════════════════════════════════════════
+          {/* ══════════════════════════════════════════════════════════
             FLIGHT PROGRESS CARD — always visible in all tabs
         ══════════════════════════════════════════════════════════ */}
-        <Card accent="blue" className="px-5 py-5 bg-tics-amber/25 border border-tics-amber/10 rounded-4xl">
-          <View className="flex-row items-center justify-between">
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px]">
-              {trip?.flightNumber ?? 'Flight'}{trip?.airline ? ` · ${trip.airline}` : ''}
-            </Text>
-            <StatusBadge value={statusInfo.label} positive={onTime} />
-          </View>
+          <Card accent="blue" className="px-5 py-5 bg-tics-amber/25 border border-tics-amber/10 rounded-4xl">
+            <View className="flex-row items-center justify-between">
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px]">
+                {trip?.flightNumber ?? 'Flight'}{trip?.airline ? ` · ${airlineName(trip.airline)}` : ''}
+              </SafeText>
+              <StatusBadge value={statusInfo.label} positive={onTime} />
+            </View>
 
-          {/* Route */}
-          <View className="mt-5 flex-row items-center justify-between">
-            <View>
-              <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-text text-[26px]">
-                {toCode(trip?.from)}
-              </Text>
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-1 text-tics-muted text-[11px]" numberOfLines={1}>
-                {trip?.from ?? '—'}
-              </Text>
-            </View>
-            <View className="items-center flex-1 px-2">
-              <Ionicons name="airplane" size={22} color="#3b82f6" />
-              {hoursUntilDep != null && hoursUntilDep > 0 && (
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-1 text-tics-muted text-[9px]">
-                  {hoursUntilDep < 1 ? `${Math.round(hoursUntilDep * 60)}m away` : `${Math.round(hoursUntilDep)}h away`}
-                </Text>
-              )}
-            </View>
-            <View className="items-end">
-              <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-text text-[26px]">
-                {toCode(trip?.to)}
-              </Text>
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-1 text-tics-muted text-[11px]" numberOfLines={1}>
-                {trip?.to ?? '—'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Progress bar */}
-          <View className="mt-5 h-2 overflow-hidden rounded-full bg-white/[0.08]">
-            <View className="h-2 rounded-full bg-tics-amber/35 border border-tics-amber/20" style={{ width: `${Math.round(progress * 100)}%` }} />
-          </View>
-
-          {/* Gate / Terminal / Remaining */}
-          <View className="mt-4 flex-row justify-between">
-            <View>
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[10px] uppercase tracking-wide">Gate</Text>
-              <Text style={{ fontFamily: 'Syne_600SemiBold', color: flight?.gate ? '#60A5FA' : 'rgba(248,250,252,0.3)' }} className="mt-1 text-[18px]">
-                {flight?.gate ?? '—'}
-              </Text>
-            </View>
-            <View className="items-center">
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[10px] uppercase tracking-wide">Terminal</Text>
-              <Text style={{ fontFamily: 'Syne_600SemiBold', color: flight?.terminal ? '#A78BFA' : 'rgba(248,250,252,0.3)' }} className="mt-1 text-[18px]">
-                {flight?.terminal ?? '—'}
-              </Text>
-            </View>
-            <View className="items-end">
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[10px] uppercase tracking-wide">Remaining</Text>
-              <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="mt-1 text-tics-text text-[18px]">
-                {remainingLabel}
-              </Text>
-            </View>
-          </View>
-
-          {/* Delay banner */}
-          {flight?.delayMinutes != null && flight.delayMinutes > 0 && (
-            <View className="mt-4 flex-row items-center gap-3 rounded-xl border border-tics-amber/30 bg-tics-amber/10 px-4 py-3">
-              <Ionicons name="warning-outline" size={18} color="#F59E0B" />
-              <View className="flex-1">
-                <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[12px]">
-                  Delayed {flight.delayMinutes} minutes
-                </Text>
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] mt-0.5">
-                  Status: {flight.status} · Check airline app for latest
-                </Text>
+            {/* Route */}
+            <View className="mt-5 flex-row items-center justify-between">
+              <View>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[26px]">
+                  {toCode(trip?.from)}
+                </SafeText>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-1 text-tics-muted text-[11px]" numberOfLines={1}>
+                  {trip?.from ?? '—'}
+                </SafeText>
               </View>
-            </View>
-          )}
-
-          {/* No flight data prompt */}
-          {!flight && (
-            <Pressable onPress={handleRefresh} disabled={refreshing} className="mt-4 active:opacity-70">
-              <View className="flex-row items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-3">
-                {refreshing
-                  ? <ActivityIndicator size={14} color="rgba(248,250,252,0.4)" />
-                  : <Ionicons name="refresh-outline" size={15} color="rgba(248,250,252,0.4)" />}
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] flex-1">
-                  {refreshing ? 'Loading flight data…' : 'Tap to fetch live gate, terminal & delay'}
-                </Text>
-              </View>
-            </Pressable>
-          )}
-        </Card>
-
-        {/* ══════════════════════════════════════════════════════════
-            OVERVIEW TAB
-        ══════════════════════════════════════════════════════════ */}
-        {tab === 'overview' && (
-          <>
-            {/* Timeline summary */}
-            <Card accent="green" className="py-5">
-              <View className="flex-row items-center justify-between mb-4">
-                <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[14px]">Timeline</Text>
-                {trip && (
-                  <Pressable
-                    onPress={() => router.push(({ pathname: `/timeline/${trip.id}` } as any))}
-                    className="flex-row items-center gap-1 bg-tics-amber/35 border border-tics-amber/20 rounded-full px-3 py-2"
-                  >
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[12px] text-tics-muted">Full view</Text>
-                    <Ionicons name="chevron-forward" size={12} color="rgba(248,250,252,0.55)" />
-                  </Pressable>
+              <View className="items-center flex-1 px-2">
+                <Ionicons name="airplane" size={22} color="#3b82f6" />
+                {hoursUntilDep != null && hoursUntilDep > 0 && (
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-1 text-tics-muted text-[9px]">
+                    {hoursUntilDep < 1 ? `${Math.round(hoursUntilDep * 60)}m away` : `${Math.round(hoursUntilDep)}h away`}
+                  </SafeText>
                 )}
               </View>
-              <View className="gap-3">
-                {[
-                  {
-                    label: 'Departure',
-                    value: trip?.departureTime ? new Date(trip.departureTime).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—',
-                    color: '#3B82F6',
-                  },
-                  {
-                    label: 'Monitoring Status',
-                    value: statusInfo.label,
-                    color: statusInfo.color,
-                  },
-                  {
-                    label: 'Arrival',
-                    value: trip?.arrivalTime ? new Date(trip.arrivalTime).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—',
-                    color: '#22C55E',
-                  },
-                ].map((row) => (
-                  <View key={row.label} className="flex-row items-center justify-between rounded-full border border-[#96C7B3]/50 bg-white/[0.06] p-5">
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px]">{row.label}</Text>
-                    <Text style={{ fontFamily: 'Syne_600SemiBold', color: row.color }} className="text-[12px]">{row.value}</Text>
-                  </View>
-                ))}
+              <View className="items-end">
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[26px]">
+                  {toCode(trip?.to)}
+                </SafeText>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-1 text-tics-muted text-[11px]" numberOfLines={1}>
+                  {trip?.to ?? '—'}
+                </SafeText>
               </View>
-            </Card>
+            </View>
 
-            {/* Weather card */}
-            <Card accent="blue" className="py-5">
-              <View className="flex-row items-center justify-between mb-1">
-                <View className="flex-row items-center gap-2">
-                  <Ionicons name="partly-sunny" size={20} color="#FBBF24" />
-                  <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[14px]">
-                    Weather at Destination
-                  </Text>
+            {/* Progress bar */}
+            <View className="mt-5 h-2 overflow-hidden rounded-full bg-white/[0.08]">
+              <View className="h-2 rounded-full bg-tics-amber/35 border border-tics-amber/20" style={{ width: `${Math.round(progress * 100)}%` }} />
+            </View>
+
+            {/* Gate / Terminal / Remaining */}
+            <View className="mt-4 flex-row justify-between">
+              <View>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[10px] uppercase tracking-wide">Gate</SafeText>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: flight?.gate ? '#60A5FA' : 'rgba(248,250,252,0.3)' }} className="mt-1 text-[18px]">
+                  {flight?.gate ?? '—'}
+                </SafeText>
+              </View>
+              <View className="items-center">
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[10px] uppercase tracking-wide">Terminal</SafeText>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: flight?.terminal ? '#A78BFA' : 'rgba(248,250,252,0.3)' }} className="mt-1 text-[18px]">
+                  {flight?.terminal ?? '—'}
+                </SafeText>
+              </View>
+              <View className="items-end">
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[10px] uppercase tracking-wide">Remaining</SafeText>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-1 text-tics-text text-[18px]">
+                  {remainingLabel}
+                </SafeText>
+              </View>
+            </View>
+
+            {/* Delay banner */}
+            {flight?.delayMinutes != null && flight.delayMinutes > 0 && (
+              <View className="mt-4 flex-row items-center gap-3 rounded-xl border border-tics-amber/30 bg-tics-amber/10 px-4 py-3">
+                <Ionicons name="warning-outline" size={18} color="#F59E0B" />
+                <View className="flex-1">
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[12px]">
+                    Delayed {flight.delayMinutes} minutes
+                  </SafeText>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[11px] mt-0.5">
+                    Status: {flight.status} · Check airline app for latest
+                  </SafeText>
                 </View>
-                {weather?.tempC != null && (
-                  <View className="rounded-full border border-tics-amber/20 bg-tics-amber/35 px-3 py-2">
-                    <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[14px]">
-                      {Math.round(weather.tempC)}°C
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {weather ? (
-                <View className="mt-3 gap-2">
-                  <InfoRow label="Location" value={weather.label} />
-                  {weather.description && (
-                    <InfoRow
-                      label="Conditions"
-                      value={weather.description.charAt(0).toUpperCase() + weather.description.slice(1)}
-                    />
-                  )}
-                  {weather.tempC != null && (
-                    <InfoRow label="Temperature" value={`${Math.round(weather.tempC)}°C${weather.feelsLikeC != null ? ` · feels ${Math.round(weather.feelsLikeC)}°C` : ''}`} valueColor="#FBBF24" />
-                  )}
-                  {weather.humidity != null && (
-                    <InfoRow label="Humidity" value={`${weather.humidity}%`} />
-                  )}
-                  {weather.windKph != null && (
-                    <InfoRow label="Wind" value={`${weather.windKph} km/h`} />
-                  )}
-                  {/* Risk bar */}
-                  <WeatherRiskBar score={weather.riskScore} />
-                  {/* AI summary */}
-                  {weather.riskSummary && (
-                    <View className="mt-2 rounded-full border border-[#96C7B3]/50 bg-white/[0.06] px-4 py-3">
-                      <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] leading-5">
-                        {weather.riskSummary}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              ) : (
-                <Pressable
-                  onPress={handleRefresh}
-                  disabled={refreshing}
-                  className="mt-4 flex-row items-center gap-2 rounded-xl border border-[#96C7B3]/50 bg-white/[0.06] px-4 py-4 active:opacity-70"
-                >
-                  {refreshing
-                    ? <ActivityIndicator size={16} color="#FBBF24" />
-                    : <Ionicons name="cloud-outline" size={20} color="rgba(248,250,252,0.3)" />}
-                  <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] flex-1">
-                    {refreshing ? 'Loading weather…' : `Tap to load weather at ${trip?.to ?? 'destination'}`}
-                  </Text>
-                  {!refreshing && <Ionicons name="refresh-outline" size={14} color="rgba(248,250,252,0.25)" />}
-                </Pressable>
-              )}
-            </Card>
-          </>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════
-            FLIGHT TAB
-        ══════════════════════════════════════════════════════════ */}
-        {tab === 'flight' && (
-          <Card accent="blue" className="py-5">
-            <View className="flex-row items-center gap-2 mb-4">
-              <Ionicons name="airplane" size={18} color="#3B82F6" />
-              <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[14px]">Flight Monitoring</Text>
-            </View>
-
-            {flight ? (
-              <View className="gap-3">
-                <InfoRow
-                  label="Status"
-                  value={flight.status.charAt(0).toUpperCase() + flight.status.slice(1)}
-                  valueColor={flightStatusColor[flight.status] ?? '#94A3B8'}
-                />
-                <InfoRow label="Gate" value={flight.gate ?? 'Not assigned'} valueColor={flight.gate ? '#60A5FA' : undefined} />
-                <InfoRow label="Terminal" value={flight.terminal ?? 'Not assigned'} valueColor={flight.terminal ? '#A78BFA' : undefined} />
-                <InfoRow
-                  label="Delay"
-                  value={flight.delayMinutes != null && flight.delayMinutes > 0 ? `${flight.delayMinutes} minutes` : 'None reported'}
-                  valueColor={flight.delayMinutes != null && flight.delayMinutes > 0 ? '#F59E0B' : '#22C55E'}
-                />
-                {flight.departureActual && (
-                  <InfoRow
-                    label="Actual departure"
-                    value={new Date(flight.departureActual).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                    valueColor="#60A5FA"
-                  />
-                )}
-
-                {flight.delayMinutes != null && flight.delayMinutes >= 30 && (
-                  <View className="mt-2 rounded-xl border border-tics-amber/30 bg-tics-amber/10 px-4 py-3 gap-1">
-                    <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[12px]">
-                      ⚠ {flight.delayMinutes >= 120 ? 'Significant' : 'Moderate'} delay — {flight.delayMinutes} minutes
-                    </Text>
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] leading-5">
-                      {flight.delayMinutes >= 120
-                        ? 'Consider contacting your airline about rebooking or lounge access.'
-                        : 'Monitor the airline app for gate and boarding time updates.'}
-                    </Text>
-                  </View>
-                )}
-
-                {flight.status === 'canceled' && (
-                  <View className="mt-2 rounded-xl border border-tics-red/30 bg-tics-red/10 px-4 py-3 gap-1">
-                    <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-red text-[12px]">
-                      Flight canceled
-                    </Text>
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] leading-5">
-                      Contact your airline immediately. You are entitled to a full refund or free rebooking.
-                    </Text>
-                  </View>
-                )}
-
-                {/* Ask AI CTA */}
-                <Pressable
-                  onPress={() => {
-                    if (!trip) return;
-                    const msg = `[Flight Analysis]\nI need information about my flight.\n\nTrip: ${trip.title}\nRoute: ${trip.from} → ${trip.to}\nFlight: ${trip.flightNumber ?? 'N/A'} (${trip.airline ?? 'N/A'})\nDeparture: ${new Date(trip.departureTime).toLocaleString()}\nArrival: ${new Date(trip.arrivalTime).toLocaleString()}\n\nCurrent flight status:\n- Status: ${flight?.status ?? 'Unknown'}\n- Gate: ${flight?.gate ?? 'TBC'}\n- Terminal: ${flight?.terminal ?? 'TBC'}\n- Delay: ${flight?.delayMinutes != null && flight.delayMinutes > 0 ? flight.delayMinutes + ' min' : 'None'}\n\nPlease analyze:\n1. Is my flight on schedule?\n2. Any gate or terminal changes I should know about\n3. What to expect at the airport\n4. Recommendations for a smooth travel experience`;
-                    useAssistantStore.getState().setPendingMessage(msg, trip.id);
-                    router.push('/assistant' as any);
-                  }}
-                  className="mt-2 flex-row items-center justify-center gap-2 rounded-full bg-tics-amber/35 border border-tics-amber/20 p-6"
-                >
-                  <Ionicons name="sparkles-outline" size={22} color="#fff" />
-                  <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-text text-[13px]">
-                    Ask AI about this flight
-                  </Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View className="gap-3">
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] leading-5">
-                  {trip?.flightNumber
-                    ? `Waiting for live data for flight ${trip.flightNumber}. Tap refresh to query AviationStack.`
-                    : 'No flight number set for this trip. Add a flight number to enable live gate and delay tracking.'}
-                </Text>
-                <Pressable
-                  onPress={handleRefresh}
-                  disabled={refreshing}
-                  className="flex-row items-center justify-center gap-1 rounded-full bg-tics-amber/35 border border-tics-amber/20 p-6"
-                >
-                  {refreshing ? <ActivityIndicator size={16} color="#fff" /> : <Ionicons name="refresh" size={18} color="#fff" />}
-                  <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-text text-[13px]">
-                    {refreshing ? 'Fetching live data…' : 'Fetch live flight data'}
-                  </Text>
-                </Pressable>
               </View>
             )}
-          </Card>
-        )}
 
-        {/* ══════════════════════════════════════════════════════════
-            CONNECTIONS TAB
-        ══════════════════════════════════════════════════════════ */}
-        {tab === 'connections' && (
-          <View className="gap-4">
-            <Card accent="purple" className="py-5">
-              <View className="flex-row items-center gap-2 mb-4">
-                <Ionicons name="git-network-outline" size={18} color="#8B5CF6" />
-                <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[14px]">Route & Connections</Text>
-              </View>
-          
-              {/* Main leg */}
-              <View className="rounded-4xl bg-tics-amber/25 border border-tics-amber/10 p-5 mb-3">
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[10px] uppercase tracking-wide mb-3">
-                  Main leg
-                </Text>
-                <View className="flex-row items-center gap-3">
-                  <View className="items-center">
-                    <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-text text-[20px]">{toCode(trip?.from)}</Text>
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[10px] mt-0.5">
-                      {trip?.departureTime ? new Date(trip.departureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
-                    </Text>
-                  </View>
-                  <View className="flex-1 items-center">
-                    <View className="flex-row items-center gap-1 w-full">
-                      <View className="flex-1 h-px bg-tics-purple/30" />
-                      <Ionicons name="airplane" size={16} color="#8B5CF6" />
-                      <View className="flex-1 h-px bg-tics-purple/30" />
-                    </View>
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[10px] mt-1">
-                      {trip?.flightNumber ?? 'Direct'}
-                    </Text>
-                  </View>
-                  <View className="items-end">
-                    <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-text text-[20px]">{toCode(trip?.to)}</Text>
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[10px] mt-0.5">
-                      {trip?.arrivalTime ? new Date(trip.arrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
-                    </Text>
-                  </View>
+            {/* No flight data prompt */}
+            {!flight && (
+              <Pressable onPress={handleRefresh} disabled={refreshing} className="mt-4 active:opacity-70">
+                <View className="flex-row items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-3">
+                  {refreshing
+                    ? <ActivityIndicator size={14} color="rgba(248,250,252,0.4)" />
+                    : <Ionicons name="refresh-outline" size={15} color="rgba(248,250,252,0.4)" />}
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[11px] flex-1">
+                    {refreshing ? 'Loading flight data…' : 'Tap to fetch live gate, terminal & delay'}
+                  </SafeText>
                 </View>
+              </Pressable>
+            )}
+          </Card>
 
-                {Number.isFinite(departureMs) && Number.isFinite(arrivalMs) && (
-                  <View className="mt-3 pt-3 border-t border-white/10">
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px]">
-                      Flight duration:{' '}
-                      <Text className="text-tics-text">{formatMins(Math.round((arrivalMs - departureMs) / 60_000))}</Text>
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Timeline steps */}
-              {Array.isArray(trip?.timeline) && trip!.timeline.length > 0 ? (
-                <View className="gap-2">
-                  <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] mb-1">Saved itinerary steps</Text>
-                  {trip!.timeline.map((t: any, i: number) => (
-                    <View key={i} className="flex-row items-center gap-3 rounded-xl border border-[#96C7B3]/50 bg-white/[0.06] px-4 py-3">
-                      <Ionicons name="ellipse" size={8} color="#8B5CF6" />
-                      <View className="flex-1">
-                        <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-text text-[12px]">{t.label}</Text>
-                        <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px]">
-                          {new Date(t.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </Text>
-                      </View>
+          {/* ══════════════════════════════════════════════════════════
+            OVERVIEW TAB
+        ══════════════════════════════════════════════════════════ */}
+          {tab === 'overview' && (
+            <>
+              {/* Timeline summary */}
+              <Card accent="green" className="py-5">
+                <View className="flex-row items-center justify-between mb-4">
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber ml-2 text-[14px]">Timeline</SafeText>
+                  {trip && (
+                    <Pressable
+                      onPress={() => router.push(({ pathname: `/timeline/${trip.id}` } as any))}
+                      className="flex-row items-center gap-1 bg-tics-amber/35 border border-tics-amber/20 rounded-full px-3 py-2"
+                    >
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-[12px] text-tics-muted">Full view</SafeText>
+                      <Ionicons name="chevron-forward" size={12} color="rgba(248,250,252,0.55)" />
+                    </Pressable>
+                  )}
+                </View>
+                <View className="gap-3">
+                  {[
+                    {
+                      label: 'Departure',
+                      value: trip?.departureTime ? new Date(trip.departureTime).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—',
+                      color: '#3B82F6',
+                    },
+                    {
+                      label: 'Monitoring Status',
+                      value: statusInfo.label,
+                      color: statusInfo.color,
+                    },
+                    {
+                      label: 'Arrival',
+                      value: trip?.arrivalTime ? new Date(trip.arrivalTime).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—',
+                      color: '#22C55E',
+                    },
+                  ].map((row) => (
+                    <View key={row.label} className="flex-row items-center justify-between rounded-full border border-tics-amber/40 bg-white/[0.06] p-5">
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px]">{row.label}</SafeText>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: row.color }} className="text-[12px]">{row.value}</SafeText>
                     </View>
                   ))}
                 </View>
-              ) : (
-                <View className="rounded-full border border-[#96C7B3]/50 bg-white/[0.06] px-4 py-4">
-                  <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] leading-5">
-                    Direct flight. Multi-leg intelligence activates when you add layovers to your itinerary.
-                  </Text>
-                </View>
-              )}
-            </Card>
+              </Card>
 
-            {/* Connection risk */}
-            <Card accent="none" className="py-5">
-              <View className="flex-row items-center gap-2 mb-3">
-                <Ionicons name="pulse-outline" size={18} color="#22C55E" />
-                <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-text text-[14px]">Connection Risk</Text>
-              </View>
-              <View className="gap-2">
-                <InfoRow
-                  label="Route type"
-                  value={Array.isArray(trip?.timeline) && trip!.timeline.length > 1 ? 'Multi-leg' : 'Direct'}
-                  valueColor="#22C55E"
-                />
-                <InfoRow
-                  label="Flight risk"
-                  value={onTime ? 'Low' : 'Elevated'}
-                  valueColor={onTime ? '#22C55E' : '#F59E0B'}
-                />
-                {weather && (
-                  <InfoRow
-                    label="Weather risk"
-                    value={weather.riskScore >= 7 ? 'Severe' : weather.riskScore >= 4 ? 'Moderate' : weather.riskScore >= 2 ? 'Mild' : 'Clear'}
-                    valueColor={riskColor(weather.riskScore)}
-                  />
+              {/* Weather card */}
+              <Card accent="blue" className="">
+                <View className="flex-row items-center justify-between mb-1">
+                  <View className="flex-row items-center gap-2 ml-2">
+                    <Ionicons name="partly-sunny" size={20} color="#FBBF24" />
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[14px]">
+                      Weather at Destination
+                    </SafeText>
+                  </View>
+                  {weather?.tempC != null && (
+                    <View className="rounded-full border border-tics-amber/20 bg-tics-amber/35 px-3 py-2">
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[14px]">
+                        {Math.round(weather.tempC)}°C
+                      </SafeText>
+                    </View>
+                  )}
+                </View>
+
+                {weather ? (
+                  <View className="mt-3 gap-2">
+                    <InfoRow label="Location" value={weather.label} />
+                    {weather.description && (
+                      <InfoRow
+                        label="Conditions"
+                        value={weather.description.charAt(0).toUpperCase() + weather.description.slice(1)}
+                      />
+                    )}
+                    {weather.tempC != null && (
+                      <InfoRow label="Temperature" value={`${Math.round(weather.tempC)}°C${weather.feelsLikeC != null ? ` · feels ${Math.round(weather.feelsLikeC)}°C` : ''}`} valueColor="#FBBF24" />
+                    )}
+                    {weather.humidity != null && (
+                      <InfoRow label="Humidity" value={`${weather.humidity}%`} />
+                    )}
+                    {weather.windKph != null && (
+                      <InfoRow label="Wind" value={`${weather.windKph} km/h`} />
+                    )}
+                    {/* Risk bar */}
+                    <WeatherRiskBar score={weather.riskScore} />
+                    {/* AI summary */}
+                    {weather.riskSummary && (
+                      <View className="mt-2 rounded-full border border-tics-amber/40 bg-white/[0.06] px-4 py-3">
+                        <Text style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px] leading-5">
+                          {weather.riskSummary}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={handleRefresh}
+                    disabled={refreshing}
+                    className="mt-4 flex-row items-center gap-2 rounded-full border border-tics-amber/40 bg-white/[0.06] px-4 py-4 active:opacity-70"
+                  >
+                    {refreshing
+                      ? <ActivityIndicator size={16} color="#FBBF24" />
+                      : <Ionicons name="cloud-outline" size={20} color="rgba(248,250,252,0.3)" />}
+                    <Text style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px] flex-1">
+                      {refreshing ? 'Loading weather…' : `Tap to load weather at ${trip?.to ?? 'destination'}`}
+                    </Text>
+                    {!refreshing && <Ionicons name="refresh-outline" size={14} color="rgba(248,250,252,0.25)" />}
+                  </Pressable>
                 )}
+              </Card>
+            </>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════
+            FLIGHT TAB
+        ══════════════════════════════════════════════════════════ */}
+          {tab === 'flight' && (
+            <Card accent="blue" className="py-3">
+              <View className="flex-row items-center gap-2 mb-4 px-1">
+                <Ionicons name="airplane" size={18} color="#96C7B3" />
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[14px]">Flight Monitoring</SafeText>
               </View>
-              {flight?.delayMinutes != null && flight.delayMinutes >= 30 && (
-                <View className="mt-3 rounded-xl border border-tics-amber/30 bg-tics-amber/10 px-4 py-3">
-                  <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-amber text-[12px] leading-5">
-                    ⚠ Current delay of {flight.delayMinutes} min may impact onward connections. Contact your airline.
+
+              {flight ? (
+                <View className="gap-3">
+                  <InfoRow
+                    label="Status"
+                    value={flight.status.charAt(0).toUpperCase() + flight.status.slice(1)}
+                    valueColor={flightStatusColor[flight.status] ?? '#94A3B8'}
+                  />
+                  <InfoRow label="Gate" value={flight.gate ?? 'Not assigned'} valueColor={flight.gate ? '#60A5FA' : undefined} />
+                  <InfoRow label="Terminal" value={flight.terminal ?? 'Not assigned'} valueColor={flight.terminal ? '#A78BFA' : undefined} />
+                  <InfoRow
+                    label="Delay"
+                    value={flight.delayMinutes != null && flight.delayMinutes > 0 ? `${flight.delayMinutes} minutes` : 'None reported'}
+                    valueColor={flight.delayMinutes != null && flight.delayMinutes > 0 ? '#F59E0B' : '#22C55E'}
+                  />
+                  {flight.departureActual && (
+                    <InfoRow
+                      label="Actual departure"
+                      value={new Date(flight.departureActual).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                      valueColor="#60A5FA"
+                    />
+                  )}
+
+                  {flight.delayMinutes != null && flight.delayMinutes >= 30 && (
+                    <View className="mt-2 rounded-xl border border-tics-amber/30 bg-tics-amber/10 px-4 py-3 gap-1">
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[12px]">
+                        ⚠ {flight.delayMinutes >= 120 ? 'Significant' : 'Moderate'} delay — {flight.delayMinutes} minutes
+                      </SafeText>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[11px] leading-5">
+                        {flight.delayMinutes >= 120
+                          ? 'Consider contacting your airline about rebooking or lounge access.'
+                          : 'Monitor the airline app for gate and boarding time updates.'}
+                      </SafeText>
+                    </View>
+                  )}
+
+                  {flight.status === 'canceled' && (
+                    <View className="mt-2 rounded-xl border border-tics-red/30 bg-tics-red/10 px-4 py-3 gap-1">
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-red text-[12px]">
+                        Flight canceled
+                      </SafeText>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[11px] leading-5">
+                        Contact your airline immediately. You are entitled to a full refund or free rebooking.
+                      </SafeText>
+                    </View>
+                  )}
+
+                  {/* Ask AI CTA */}
+                  <Pressable
+                    onPress={() => {
+                      if (!trip) return;
+                      const msg = `[Flight Analysis]\nI need information about my flight.\n\nTrip: ${trip.title}\nRoute: ${trip.from} → ${trip.to}\nFlight: ${trip.flightNumber ?? 'N/A'} (${airlineName(trip.airline) || 'N/A'})\nDeparture: ${new Date(trip.departureTime).toLocaleString()}\nArrival: ${new Date(trip.arrivalTime).toLocaleString()}\n\nCurrent flight status:\n- Status: ${flight?.status ?? 'Unknown'}\n- Gate: ${flight?.gate ?? 'TBC'}\n- Terminal: ${flight?.terminal ?? 'TBC'}\n- Delay: ${flight?.delayMinutes != null && flight.delayMinutes > 0 ? flight.delayMinutes + ' min' : 'None'}\n\nPlease analyze:\n1. Is my flight on schedule?\n2. Any gate or terminal changes I should know about\n3. What to expect at the airport\n4. Recommendations for a smooth travel experience`;
+                      useAssistantStore.getState().setPendingMessage(msg, trip.id);
+                      router.push('/assistant' as any);
+                    }}
+                    className="mt-2 flex-row items-center justify-center gap-2 rounded-full bg-tics-amber/35 border border-tics-amber/20 p-6"
+                  >
+                    <Ionicons name="sparkles-outline" size={22} color="#fff" />
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[13px]">
+                      Ask AI about this flight
+                    </SafeText>
+                  </Pressable>
+                </View>
+              ) : (
+                <View className="gap-3">
+                  <Text style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px] leading-5 px-2">
+                    {trip?.flightNumber
+                      ? `Waiting for live data for flight ${trip.flightNumber}. Tap refresh to query AviationStack.`
+                      : 'No flight number set for this trip. Add a flight number to enable live gate and delay tracking.'}
                   </Text>
+                  <Pressable
+                    onPress={handleRefresh}
+                    disabled={refreshing}
+                    className="flex-row items-center justify-center gap-2.5 rounded-full bg-tics-amber/35 border border-tics-amber/20 p-6"
+                  >
+                    {refreshing ? <ActivityIndicator size={16} color="#fff" /> : <Ionicons name="refresh" size={18} color="#F8FAFC" />}
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[13px]">
+                      {refreshing ? 'Fetching live data…' : 'Fetch live flight data'}
+                    </SafeText>
+                  </Pressable>
                 </View>
               )}
             </Card>
-          </View>
-        )}
-      </ScrollView>
+          )}
 
+          {/* ══════════════════════════════════════════════════════════
+            CONNECTIONS TAB
+        ══════════════════════════════════════════════════════════ */}
+          {tab === 'connections' && (
+            <View className="gap-4">
+              <Card accent="purple" className="py-3">
+                <View className="flex-row items-center gap-2 mb-4">
+                  <Ionicons name="git-network-outline" size={18} color="#8B5CF6" />
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[14px]">Route & Connections</SafeText>
+                </View>
+
+                {/* Main leg */}
+                <View className="rounded-4xl bg-tics-amber/25 border border-tics-amber/10 p-5 mb-3">
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[10px] uppercase tracking-wide mb-3">
+                    Main leg
+                  </SafeText>
+                  <View className="flex-row items-center gap-3">
+                    <View className="items-center">
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[20px]">{toCode(trip?.from)}</SafeText>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[10px] mt-0.5">
+                        {trip?.departureTime ? new Date(trip.departureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </SafeText>
+                    </View>
+                    <View className="flex-1 items-center">
+                      <View className="flex-row items-center gap-1 w-full">
+                        <View className="flex-1 h-px bg-tics-purple/30" />
+                        <Ionicons name="airplane" size={16} color="#8B5CF6" />
+                        <View className="flex-1 h-px bg-tics-purple/30" />
+                      </View>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[10px] mt-1">
+                        {trip?.flightNumber ?? 'Direct'}
+                      </SafeText>
+                    </View>
+                    <View className="items-end">
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[20px]">{toCode(trip?.to)}</SafeText>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[10px] mt-0.5">
+                        {trip?.arrivalTime ? new Date(trip.arrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </SafeText>
+                    </View>
+                  </View>
+
+                  {Number.isFinite(departureMs) && Number.isFinite(arrivalMs) && (
+                    <View className="mt-3 pt-3 border-t border-white/10">
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[11px]">
+                        Flight duration:{' '}
+                        <SafeText className="text-tics-text">{formatMins(Math.round((arrivalMs - departureMs) / 60_000))}</SafeText>
+                      </SafeText>
+                    </View>
+                  )}
+                </View>
+
+                {/* Timeline steps */}
+                {Array.isArray(trip?.timeline) && trip!.timeline.length > 0 ? (
+                  <View className="gap-2">
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[11px] mb-1">Saved itinerary steps</SafeText>
+                    {trip!.timeline.map((t: any, i: number) => (
+                      <View key={i} className="flex-row items-center gap-3 rounded-xl border border-[#96C7B3]/50 bg-white/[0.06] px-4 py-3">
+                        <Ionicons name="ellipse" size={8} color="#8B5CF6" />
+                        <View className="flex-1">
+                          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[12px]">{t.label}</SafeText>
+                          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[11px]">
+                            {new Date(t.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </SafeText>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View className="rounded-full border border-tics-amber/50 bg-white/[0.06] px-4 py-4">
+                    <Text style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px] leading-5">
+                      Direct flight. Multi-leg intelligence activates when you add layovers to your itinerary.
+                    </Text>
+                  </View>
+                )}
+              </Card>
+
+              {/* Connection risk */}
+              <Card accent="none" className="">
+                <View className="flex-row items-center gap-2 mb-3">
+                  <Ionicons name="pulse-outline" size={18} color="#22C55E" />
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[14px]">Connection Risk</SafeText>
+                </View>
+                <View className="gap-2">
+                  <InfoRow
+                    label="Route type"
+                    value={Array.isArray(trip?.timeline) && trip!.timeline.length > 1 ? 'Multi-leg' : 'Direct'}
+                    valueColor="#22C55E"
+                  />
+                  <InfoRow
+                    label="Flight risk"
+                    value={onTime ? 'Low' : 'Elevated'}
+                    valueColor={onTime ? '#22C55E' : '#F59E0B'}
+                  />
+                  {weather && (
+                    <InfoRow
+                      label="Weather risk"
+                      value={weather.riskScore >= 7 ? 'Severe' : weather.riskScore >= 4 ? 'Moderate' : weather.riskScore >= 2 ? 'Mild' : 'Clear'}
+                      valueColor={riskColor(weather.riskScore)}
+                    />
+                  )}
+                </View>
+                {flight?.delayMinutes != null && flight.delayMinutes >= 30 && (
+                  <View className="mt-3 mb-2 rounded-xl border border-tics-amber/30 bg-tics-amber/10 px-4 py-3">
+                    <Text style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[12px] leading-5">
+                      ⚠ Current delay of {flight.delayMinutes} min may impact onward connections. Contact your airline.
+                    </Text>
+                  </View>
+                )}
+              </Card>
+            </View>
+          )}
+        </ScrollView>
+
+      </View>
       <PersistentTabBar />
-    </View>
+    </>
+
   );
 }

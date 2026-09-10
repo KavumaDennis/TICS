@@ -30,6 +30,7 @@ import { useAlertModal } from '@/src/components/AlertModal';
 import { generateShareUpdate, refreshTripMonitoring } from '@/src/firebase/callables';
 import { getFirebaseFirestore } from '@/src/firebase/firebaseApp';
 import { collection, getDocs, writeBatch } from 'firebase/firestore';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 /* ── Kind metadata ──────────────────────────────────────────────────────────── */
 
@@ -136,7 +137,12 @@ export default function SmartRecommendationsScreen() {
     try {
       await refreshTripMonitoring(trip.id);
     } catch (e: any) {
-      showAlertModal('Refresh failed', e?.message ?? 'Please try again.', [{ text: 'OK', style: 'primary' }]);
+      // If Firebase function is unavailable, do a local refresh of recommendations
+      if (e?.message === 'Unavailable' || e?.code === 'unavailable') {
+        showAlertModal('Refresh limited', 'Could not reach server. Showing cached recommendations.', [{ text: 'OK', style: 'primary' }]);
+      } else {
+        showAlertModal('Refresh failed', e?.message ?? 'Please try again.', [{ text: 'OK', style: 'primary' }]);
+      }
     } finally {
       setRefreshing(false);
     }
@@ -149,10 +155,23 @@ export default function SmartRecommendationsScreen() {
       const { shareText } = await generateShareUpdate(trip.id);
       await Share.share({ message: shareText, title: trip.title });
     } catch {
-      await Share.share({
-        message: `Recommendations for ${trip?.title}`,
-        title: trip?.title ?? 'TICS',
-      }).catch(() => { });
+      // Fallback: share without Firebase function
+      const fallbackMessage = [
+        `📍 ${trip.title}`,
+        `From: ${trip.from || 'Origin'} → To: ${trip.to || 'Destination'}`,
+        trip.departureTime ? `📅 ${new Date(trip.departureTime).toLocaleDateString()}` : '',
+        '',
+        'Powered by TICS — Travel Intelligence & Coordination System',
+      ].filter(Boolean).join('\n');
+      
+      try {
+        await Share.share({
+          message: fallbackMessage,
+          title: trip?.title ?? 'TICS Trip',
+        });
+      } catch {
+        // User cancelled share - do nothing
+      }
     } finally {
       setSharing(false);
     }
@@ -203,7 +222,7 @@ export default function SmartRecommendationsScreen() {
   }
 
   return (
-    <View style={{ flex: 1, paddingTop: insets.top + 8, backgroundColor: '#0a0b1e' }}>
+    <View className='p-1' style={{ flex: 1, backgroundColor: '#0a0b1e' }}>
 
       {/* ── Header ── */}
       <View className='bg-tics-amber/25 border border-tics-amber/10 rounded-full p-2' style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -253,11 +272,11 @@ export default function SmartRecommendationsScreen() {
         </View>
       </View>
 
-      <View className="mt-2" style={{ flex: 1, marginHorizontal: 8, maxHeight: 50 }} >
-        <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 18 }}>Smart Recommendations</Text>
-        <Text style={{ fontFamily: 'Syne_500Medium', color: '#64748b', fontSize: 12, marginTop: 1 }}>
+      <View className="mt-2 px-1" style={{ flex: 1, maxHeight: 50 }} >
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 18 }}>Smart Recommendations</SafeText>
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#64748b', fontSize: 12, marginTop: 1 }}>
           {trip?.title ?? 'No trip selected'} · {items.length} insight{items.length !== 1 ? 's' : ''}
-        </Text>
+        </SafeText>
       </View>
 
       {/* ── Trip switcher ── */}
@@ -266,7 +285,8 @@ export default function SmartRecommendationsScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           style={{ maxHeight: 44 }}
-          contentContainerStyle={{ gap: 8, paddingHorizontal: 8, alignItems: 'center' }}
+          className="px-1"
+          contentContainerStyle={{ gap: 8, alignItems: 'center' }}
         >
           {trips.map((t) => {
             const sel = t.id === trip?.id;
@@ -274,9 +294,9 @@ export default function SmartRecommendationsScreen() {
               <Pressable key={t.id} onPress={() => setSelectedTripId(t.id)}>
                 <View
                   className={`p-4 rounded-full ${sel ? "bg-tics-amber/35 border border-tics-amber/20" : ""} border border-tics-amber/20`}>
-                  <Text style={{ fontFamily: 'Syne_500Medium', fontSize: 12, color: sel ? '#fff' : 'rgba(148,163,184,0.7)' }}>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular', fontSize: 12, color: sel ? '#fff' : 'rgba(148,163,184,0.7)' }}>
                     {t.title}
-                  </Text>
+                  </SafeText>
                 </View>
               </Pressable>
             );
@@ -289,7 +309,8 @@ export default function SmartRecommendationsScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         style={{ maxHeight: 50, marginBottom: 8 }}
-        contentContainerStyle={{ gap: 8, paddingHorizontal: 8, alignItems: 'center' }}
+        className="px-1"
+        contentContainerStyle={{ gap: 8, alignItems: 'center' }}
       >
         {TABS.map((t) => {
           const active = tab === t.id;
@@ -297,11 +318,11 @@ export default function SmartRecommendationsScreen() {
           return (
             <Pressable key={t.id} onPress={() => setTab(t.id)}>
               <View
-                className={`rounded-full p-3 mt-1 ${active ? "bg-tics-green/35 border border-tics-green/20" : ""} border border-tics-amber/20`}
+                className={`rounded-full p-3 px-4 mt-1 ${active ? "bg-tics-green/35 border border-tics-green/20" : ""} border border-tics-amber/20`}
               >
-                <Text style={{ fontFamily: 'Syne_700Bold', fontSize: 12, color: active ? '#fff' : 'rgba(148,163,184,0.7)' }}>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', fontSize: 12, color: active ? '#fff' : 'rgba(148,163,184,0.7)' }}>
                   {t.label}{count > 0 ? ` (${count})` : ''}
-                </Text>
+                </SafeText>
               </View>
             </Pressable>
           );
@@ -310,7 +331,8 @@ export default function SmartRecommendationsScreen() {
 
       {/* ── Cards ── */}
       <ScrollView
-        style={{ flex: 1, paddingHorizontal: 8 }}
+        className="px-1"
+        style={{ flex: 1 }}
         contentContainerStyle={{ gap: 14, paddingBottom: 14 }}
         showsVerticalScrollIndicator={false}
       >
@@ -337,28 +359,28 @@ export default function SmartRecommendationsScreen() {
                     <View className='rounded-full' style={{ width: 34, height: 34, backgroundColor: `${meta.color}20`, alignItems: 'center', justifyContent: 'center' }}>
                       <Ionicons name={meta.icon as any} size={17} color={meta.color} />
                     </View>
-                    <Text style={{ fontFamily: 'Syne_600SemiBold', color: meta.color, fontSize: 10, letterSpacing: 0.8 }}>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: meta.color, fontSize: 10, letterSpacing: 0.8 }}>
                       {meta.label.toUpperCase()}
-                    </Text>
+                    </SafeText>
                   </View>
                   {rec.urgency && (
                     <View className='rounded-full' style={{ paddingHorizontal: 9, paddingVertical: 3, backgroundColor: urgency.bg }}>
-                      <Text style={{ fontFamily: 'Syne_700Bold', color: urgency.color, fontSize: 9, letterSpacing: 0.5 }}>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: urgency.color, fontSize: 9, letterSpacing: 0.5 }}>
                         {urgency.label}
-                      </Text>
+                      </SafeText>
                     </View>
                   )}
                 </View>
 
                 {/* Title */}
-                <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 15, lineHeight: 22 }}>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 15, lineHeight: 22 }}>
                   {rec.title}
-                </Text>
+                </SafeText>
 
                 {/* Message */}
-                <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 13, lineHeight: 20, marginTop: 6 }} numberOfLines={3}>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 13, lineHeight: 20, marginTop: 6 }} numberOfLines={3}>
                   {rec.message}
-                </Text>
+                </SafeText>
 
                 {/* Confidence bar */}
                 {rec.confidenceScore != null && (
@@ -366,17 +388,17 @@ export default function SmartRecommendationsScreen() {
                     <View style={{ flex: 1, height: 4, borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
                       <View style={{ width: `${Math.round(rec.confidenceScore * 100)}%`, height: '100%', backgroundColor: meta.color, borderRadius: 99 }} />
                     </View>
-                    <Text style={{ fontFamily: 'Syne_500Medium', color: 'rgba(148,163,184,0.5)', fontSize: 10 }}>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: 'rgba(148,163,184,0.5)', fontSize: 10 }}>
                       {Math.round(rec.confidenceScore * 100)}%
-                    </Text>
+                    </SafeText>
                   </View>
                 )}
 
                 {/* Category tag */}
                 {rec.category && (
-                  <Text style={{ fontFamily: 'Syne_500Medium', color: 'rgba(148,163,184,0.5)', fontSize: 10, marginTop: 8 }}>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: 'rgba(148,163,184,0.5)', fontSize: 10, marginTop: 8 }}>
                     {rec.category.toUpperCase()}
-                  </Text>
+                  </SafeText>
                 )}
 
                 {/* Action row */}
@@ -386,9 +408,9 @@ export default function SmartRecommendationsScreen() {
                     className='rounded-full'
                     style={{ flex: 1, backgroundColor: meta.color, paddingVertical: 11, alignItems: 'center', justifyContent: 'center' }}
                   >
-                    <Text style={{ fontFamily: 'Syne_700Bold', color: meta.color === '#F59E0B' ? 'rgba(10,11,30,0.9)' : '#fff', fontSize: 12 }}>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: meta.color === '#F59E0B' ? 'rgba(10,11,30,0.9)' : '#fff', fontSize: 12 }}>
                       {rec.actionText ?? 'View details'}
-                    </Text>
+                    </SafeText>
                   </Pressable>
                   <Pressable
                     onPress={() => handleToggleSave(rec)}
@@ -419,25 +441,25 @@ export default function SmartRecommendationsScreen() {
             >
               <Ionicons name="analytics-outline" size={36} color="#4ade80" />
             </LinearGradient>
-            <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 17, textAlign: 'center' }}>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 17, textAlign: 'center' }}>
               {tab === 'all'
                 ? 'Monitoring is warming up'
                 : `No ${tab} recommendations yet`}
-            </Text>
-            <Text style={{ fontFamily: 'Syne_500Medium', color: '#64748b', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 10 }}>
+            </SafeText>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#64748b', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 10 }}>
               {trip
                 ? `TICS generates ${tab === 'all' ? 'personalized' : tab} recommendations from live ${tab === 'weather' ? 'weather conditions' : tab === 'flight' ? 'flight data' : tab === 'timing' ? 'departure timing' : 'travel intelligence'} for ${trip.title}. Tap refresh to run a monitoring cycle now.`
                 : 'Add a trip to receive AI-powered recommendations based on real-time flight and weather data.'}
-            </Text>
+            </SafeText>
             <Pressable
               onPress={handleRefresh}
               disabled={refreshing}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 20, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(34,197,94,0.3)', backgroundColor: 'rgba(34,197,94,0.1)', paddingHorizontal: 20, paddingVertical: 12 }}
             >
               {refreshing ? <ActivityIndicator size={14} color="#22C55E" /> : <Ionicons name="refresh" size={16} color="#22C55E" />}
-              <Text style={{ fontFamily: 'Syne_700Bold', color: '#22C55E', fontSize: 13 }}>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#22C55E', fontSize: 13 }}>
                 {refreshing ? 'Running monitoring cycle…' : 'Run monitoring cycle'}
-              </Text>
+              </SafeText>
             </Pressable>
           </View>
         )}
@@ -447,12 +469,12 @@ export default function SmartRecommendationsScreen() {
       <Modal transparent visible={showOptions} animationType="fade">
         <View className="flex-1 bg-black/60 items-center justify-center px-2">
           <View className="w-full bg-tics-bg2 rounded-4xl p-6 border border-[#96C7B3]/30">
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-xl text-tics-red mb-2">
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-xl text-tics-red mb-2">
               Recommendations
-            </Text>
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-gray-500 mb-6">
+            </SafeText>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-gray-500 mb-6">
               Actions
-            </Text>
+            </SafeText>
 
             {isCompletedOrCancelled && (
               <Pressable
@@ -462,9 +484,9 @@ export default function SmartRecommendationsScreen() {
                 }}
                 className="bg-tics-red rounded-xl py-4 mb-3"
               >
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-center font-semibold text-black">
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-center font-semibold text-black">
                   Clear completed trip recommendations
-                </Text>
+                </SafeText>
               </Pressable>
             )}
 
@@ -475,18 +497,18 @@ export default function SmartRecommendationsScreen() {
               }}
               className="bg-tics-amber/35 border border-tics-amber/20 rounded-full py-6 mb-3"
             >
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-center text-tics-text font-semibold">
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-center text-tics-text font-semibold">
                 Refresh monitoring
-              </Text>
+              </SafeText>
             </Pressable>
 
             <Pressable
               onPress={() => setShowOptions(false)}
               className="py-6 bg-tics-red rounded-full border border-tics-red/20"
             >
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-center text-black">
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-center text-black">
                 Cancel
-              </Text>
+              </SafeText>
             </Pressable>
           </View>
         </View>

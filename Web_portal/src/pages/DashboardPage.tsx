@@ -9,8 +9,12 @@ import {
   Car,
   Radio,
   CheckCircle,
+  MapPin,
+  Navigation,
+  UserCheck,
+  TrendingUp,
 } from 'lucide-react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { getFirebaseFirestore } from '../lib/firebase';
 import type { TripDoc, AlertDoc } from '../types';
 import { useAuthStore } from '../store/authStore';
@@ -18,6 +22,15 @@ import { useAuthStore } from '../store/authStore';
 interface TripWithAlerts extends TripDoc {
   id: string;
   alerts?: AlertDoc[];
+}
+
+interface LastMileStats {
+  activeTravelers: number;
+  driversOnline: number;
+  ridesToday: number;
+  completedRides: number;
+  avgResponseTime: number;
+  pendingRequests: number;
 }
 
 function getRiskColor(monitoringStatus?: string): string {
@@ -56,6 +69,14 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [showCompleted, setShowCompleted] = useState(false);
   const [stats, setStats] = useState({ today: 0, atRisk: 0, inProgress: 0, completed: 0 });
+  const [lastMileStats, setLastMileStats] = useState<LastMileStats>({
+    activeTravelers: 0,
+    driversOnline: 0,
+    ridesToday: 0,
+    completedRides: 0,
+    avgResponseTime: 0,
+    pendingRequests: 0,
+  });
 
   useEffect(() => {
     const db = getFirebaseFirestore();
@@ -74,9 +95,9 @@ export default function DashboardPage() {
         const todayEnd = new Date(todayStart);
         todayEnd.setDate(todayEnd.getDate() + 1);
 
-        snap.forEach((doc) => {
-          const data = doc.data() as TripDoc;
-          items.push({ ...data, id: doc.id });
+        snap.forEach((docSnap) => {
+          const data = docSnap.data() as TripDoc;
+          items.push({ ...data, id: docSnap.id });
           if (data.monitoringStatus === 'at_risk') riskCount++;
           if (data.lastMileStatus === 'in_progress' || data.lastMileStatus === 'scheduled' || data.lastMileStatus === 'assigned') progressCount++;
           if (data.status === 'completed' || data.status === 'canceled') completedCount++;
@@ -95,7 +116,99 @@ export default function DashboardPage() {
     }
 
     loadTrips();
-  }, []);
+
+    // Load Last Mile stats in real time if operator is logged in
+    if (operator?.uid) {
+      // Active travelers count
+      const travelerUnsub = onSnapshot(
+        query(
+          collection(db, 'travelerOperators'),
+          where('operatorId', '==', operator.uid),
+          where('active', '==', true)
+        ),
+        (snap) => {
+          setLastMileStats(prev => ({ ...prev, activeTravelers: snap.size }));
+        }
+      );
+
+      // Drivers online count (check driverLocations for recent updates)
+      const driverUnsub = onSnapshot(
+        query(collection(db, 'drivers'), where('operatorId', '==', operator.uid), where('active', '==', true)),
+        async (snap) => {
+          let online = 0;
+          for (const d of snap.docs) {
+            try {
+              const locDoc = await getDoc(doc(db, 'driverLocations', d.id));
+              if (locDoc.exists()) {
+                const ts = locDoc.data()?.timestamp?.toMillis?.() || 0;
+                if (Date.now() - ts < 300000) online++; // 5 min threshold
+              }
+            } catch {}
+          }
+          setLastMileStats(prev => ({ ...prev, driversOnline: online }));
+        }
+      );
+
+      // Pending ride requests
+      const requestsUnsub = onSnapshot(
+        query(
+          collection(db, 'rideRequests'),
+          where('operatorId', '==', operator.uid),
+          where('status', '==', 'pending')
+        ),
+        (snap) => {
+          setLastMileStats(prev => ({ ...prev, pendingRequests: snap.size }));
+        }
+      );
+
+      // Rides today
+      const ridesUnsub = onSnapshot(
+        query(collection(db, 'rides')),
+        (snap) => {
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          let todayCount = 0;
+          let completedCount = 0;
+          let totalResponseTime = 0;
+          let responseCount = 0;
+
+          snap.forEach((d) => {
+            const data = d.data();
+            if (data.operatorId === operator.uid) {
+              const createdAt = data.createdAt?.toMillis?.() || 0;
+              if (createdAt >= todayStart.getTime()) {
+                todayCount++;
+                if (data.status === 'completed') completedCount++;
+              }
+              // Average response time (time between ride request and driver assignment)
+              if (data.requestedAt && data.assignedAt) {
+                const reqTime = data.requestedAt?.toMillis?.() || 0;
+                const assignTime = data.assignedAt?.toMillis?.() || 0;
+                if (reqTime > 0 && assignTime > 0) {
+                  totalResponseTime += (assignTime - reqTime) / 1000; // seconds
+                  responseCount++;
+                }
+              }
+            }
+          });
+
+          setLastMileStats(prev => ({
+            ...prev,
+            ridesToday: todayCount,
+            completedRides: completedCount,
+            avgResponseTime: responseCount > 0 ? Math.round(totalResponseTime / responseCount / 60) : 0,
+          }));
+        }
+      );
+
+      return () => {
+        travelerUnsub();
+        driverUnsub();
+        requestsUnsub();
+        ridesUnsub();
+      };
+    }
+  }, [operator?.uid]);
 
   const activeTrips = trips.filter(t => t.status !== 'completed' && t.status !== 'canceled');
   const completedTrips = trips.filter(t => t.status === 'completed' || t.status === 'canceled');
@@ -107,10 +220,10 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold text-white">
           Good {new Date().getHours() < 12 ? 'Morning' : 'Afternoon'}, {operator?.name?.split(' ')[0] || 'Operator'}
         </h1>
-        <p className="text-gray-400 mt-1">Trips overview</p>
+        <p className="text-gray-400 mt-1">Trips & Last Mile overview</p>
       </div>
 
-      {/* Stats */}
+      {/* Trip Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card">
           <div className="flex items-center justify-between">
@@ -160,6 +273,105 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Last Mile Analytics Widgets */}
+      {operator?.uid && (
+        <>
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white">Last Mile Operations</h2>
+              <span className="text-sm text-gray-500">Real-time</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="p-4 rounded-xl bg-teal-600/5 border border-teal-500/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="w-4 h-4 text-teal-400" />
+                  <span className="text-xs text-gray-500">Active Travelers</span>
+                </div>
+                <p className="text-2xl font-bold text-white">{lastMileStats.activeTravelers}</p>
+              </div>
+              <div className="p-4 rounded-xl bg-green-600/5 border border-green-500/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <Car className="w-4 h-4 text-green-400" />
+                  <span className="text-xs text-gray-500">Drivers Online</span>
+                </div>
+                <p className="text-2xl font-bold text-white">{lastMileStats.driversOnline}</p>
+              </div>
+              <div className="p-4 rounded-xl bg-blue-600/5 border border-blue-500/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <Navigation className="w-4 h-4 text-blue-400" />
+                  <span className="text-xs text-gray-500">Rides Today</span>
+                </div>
+                <p className="text-2xl font-bold text-white">{lastMileStats.ridesToday}</p>
+              </div>
+              <div className="p-4 rounded-xl bg-purple-600/5 border border-purple-500/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="w-4 h-4 text-purple-400" />
+                  <span className="text-xs text-gray-500">Completed</span>
+                </div>
+                <p className="text-2xl font-bold text-white">{lastMileStats.completedRides}</p>
+              </div>
+              <div className="p-4 rounded-xl bg-yellow-600/5 border border-yellow-500/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-4 h-4 text-yellow-400" />
+                  <span className="text-xs text-gray-500">Avg Response</span>
+                </div>
+                <p className="text-2xl font-bold text-white">{lastMileStats.avgResponseTime}m</p>
+              </div>
+              <div className="p-4 rounded-xl bg-orange-600/5 border border-orange-500/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="w-4 h-4 text-orange-400" />
+                  <span className="text-xs text-gray-500">Pending Requests</span>
+                </div>
+                <p className="text-2xl font-bold text-white">{lastMileStats.pendingRequests}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions for Last Mile */}
+          <div className="card">
+            <h2 className="text-lg font-semibold text-white mb-4">Last Mile Quick Actions</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Link
+                to="/travelers"
+                className="flex items-center gap-3 p-4 rounded-2xl bg-teal-600/5 border border-teal-500/10 hover:bg-teal-600/10 transition-all"
+              >
+                <div className="w-10 h-10 rounded-lg bg-teal-600/20 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-teal-400" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">Travelers</p>
+                  <p className="text-sm text-gray-400">Manage assigned travelers</p>
+                </div>
+              </Link>
+              <Link
+                to="/live-map"
+                className="flex items-center gap-3 p-4 rounded-2xl bg-purple-600/5 border border-purple-500/10 hover:bg-purple-600/10 transition-all"
+              >
+                <div className="w-10 h-10 rounded-lg bg-purple-600/20 flex items-center justify-center">
+                  <MapPin className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">Live Map</p>
+                  <p className="text-sm text-gray-400">Real-time traveler locations</p>
+                </div>
+              </Link>
+              <Link
+                to="/ride-requests"
+                className="flex items-center gap-3 p-4 rounded-2xl bg-blue-600/5 border border-blue-500/10 hover:bg-blue-600/10 transition-all"
+              >
+                <div className="w-10 h-10 rounded-lg bg-blue-600/20 flex items-center justify-center">
+                  <Radio className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">Ride Requests</p>
+                  <p className="text-sm text-gray-400">{lastMileStats.pendingRequests} pending</p>
+                </div>
+              </Link>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Active Trips */}
       <div className="card">

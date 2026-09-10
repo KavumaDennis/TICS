@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,6 +13,7 @@ import { useAuthStore } from '@/src/store/useAuthStore';
 import { useTripStatus } from '@/src/hooks/useTripStatus';
 import { useAlertModal } from '@/src/components/AlertModal';
 import { refreshTripMonitoring } from '@/src/firebase/callables';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 type TabKey = 'all' | 'active' | 'updates';
 
@@ -74,9 +74,8 @@ export default function AlertsCenterScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const uid = useAuthStore((s) => s.token);
 
-  //Alert Modal for options
-  const [showAlert, setShowAlert] = useState(false);
   const { modal: alertModal, showAlert: showRefreshAlert } = useAlertModal();
+  const { modal: optionsModal, showAlert: showOptionsAlert } = useAlertModal();
 
   // Allow switching between trips in this screen
   const trips = useTripStore((s) => s.trips);
@@ -137,7 +136,11 @@ export default function AlertsCenterScreen() {
       await refreshTripMonitoring(trip.id);
       if (uid && trip) useAlertStore.getState().startAlertsListener(uid, trip.id);
     } catch (e: any) {
-      showRefreshAlert('Refresh failed', e?.message ?? 'Please try again.', [{ text: 'OK', style: 'primary' }]);
+      if (e?.message === 'Unavailable' || e?.code === 'unavailable') {
+        showRefreshAlert('Refresh limited', 'Could not reach server. Showing cached data.', [{ text: 'OK', style: 'primary' }]);
+      } else {
+        showRefreshAlert('Refresh failed', e?.message ?? 'Please try again.', [{ text: 'OK', style: 'primary' }]);
+      }
     } finally {
       setRefreshing(false);
     }
@@ -166,19 +169,19 @@ export default function AlertsCenterScreen() {
             isActive ? 'border-tics-red bg-tics-red' : 'border border-tics-amber/20',
           ].join(' ')}
         >
-          <Text
-            style={{ fontFamily: 'Syne_500Medium' }}
+          <SafeText
+            style={{ fontFamily: 'ShareTech_400Regular' }}
             className={`text-[11px] ${isActive ? 'text-white' : 'text-tics-muted'}`}
           >
             {label}{count > 0 ? ` (${count})` : ''}
-          </Text>
+          </SafeText>
         </View>
       </Pressable>
     );
   }
 
   return (
-    <View className="flex-1" style={{ paddingTop: insets.top + 8 }}>
+    <View className="flex-1 p-1">
 
       {/* ── Header ── */}
       <View className="p-2 mb-4 flex-row items-center justify-between gap-1 bg-tics-amber/25 border border-tics-amber/10 rounded-full">
@@ -188,20 +191,20 @@ export default function AlertsCenterScreen() {
             style={{ height: 46, width: 46 }}
             className="items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full"
           >
-            <Ionicons name="chevron-back" size={22} color="#f8fafc" />
+            <Ionicons name="chevron-back" size={22} color="#fff" />
           </Pressable>
-          <View
+          {/* <View
             style={{ height: 46, width: 46 }}
             className="items-center justify-center rounded-full border border-tics-red/50">
             <Ionicons name="notifications-outline" size={18} color="#EF4444" />
-          </View>
+          </View> */}
         </View>
 
         <View className="px-2 pb-1">
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[17px] text-white">Alerts Center</Text>
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-1 text-[13px] text-slate-400">
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-[17px] text-white">Alerts Center</SafeText>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-1 text-[13px] text-slate-400">
             {trip?.title ?? 'No active trips'}
-          </Text>
+          </SafeText>
         </View>
 
         <View className="flex-row gap-2">
@@ -212,80 +215,20 @@ export default function AlertsCenterScreen() {
             className="bg-tics-amber/35 border border-tics-amber/20 rounded-full items-center justify-center"
           >
             {refreshing
-              ? <ActivityIndicator size={16} color="#3b82f6" />
+              ? <ActivityIndicator size={16} color="#96C7B3" />
               : <Ionicons name="refresh" size={18} color="#fff" />}
           </Pressable>
           <Pressable
-            onPress={() => setShowAlert(true)}
+            onPress={() => showOptionsAlert('Alerts', 'Actions', [
+              { text: 'Mark all read', style: 'primary', onPress: () => { if (trip) useAlertStore.getState().markAllRead(trip.id); } },
+              { text: 'Clear tab filter', onPress: () => setTab('all') },
+              { text: 'Cancel', style: 'cancel' },
+            ])}
             style={{ height: 46, width: 46 }}
             className="bg-tics-amber/35 border border-tics-amber/20 rounded-full items-center justify-center"
           >
             <Ionicons name="ellipsis-horizontal" size={18} color="#fff" />
           </Pressable>
-          <Modal
-            transparent
-            visible={showAlert}
-            animationType="fade"
-          >
-            <View className="flex-1 bg-black/60 items-center justify-center px-2 ">
-              <View className="w-full bg-tics-bg2 rounded-4xl p-6 border border-[#96C7B3]/25">
-
-                <Text
-                  style={{ fontFamily: 'Syne_500Medium' }}
-                  className="text-xl text-tics-red mb-2">
-                  Alerts
-                </Text>
-
-                <Text
-                  style={{ fontFamily: 'Syne_500Medium' }}
-                  className="text-gray-500 mb-6">
-                  Actions
-                </Text>
-
-                <Pressable
-                  onPress={() => {
-                    if (trip) {
-                      useAlertStore.getState().markAllRead(trip.id);
-                    }
-                    setShowAlert(false);
-                  }}
-                  className="bg-tics-amber rounded-full py-6 mb-3"
-                >
-                  <Text
-                    style={{ fontFamily: 'Syne_500Medium' }}
-                    className="text-center font-semibold">
-                    Mark all read
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => {
-                    setTab('all');
-                    setShowAlert(false);
-                  }}
-                  className="border border-[#96C7B3]/50 bg-white/[0.05] rounded-full py-6 mb-3"
-                >
-                  <Text
-                    style={{ fontFamily: 'Syne_500Medium' }}
-                    className="text-center text-tics-text">
-                    Clear tab filter
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => setShowAlert(false)}
-                  className="py-6 bg-tics-red rounded-full border border-tics-red/20"
-                >
-                  <Text
-                    style={{ fontFamily: 'Syne_500Medium' }}
-                    className="text-center text-black">
-                    Cancel
-                  </Text>
-                </Pressable>
-
-              </View>
-            </View>
-          </Modal>
         </View>
       </View>
 
@@ -295,11 +238,11 @@ export default function AlertsCenterScreen() {
       {/* ── Trip switcher (shows when user has multiple trips) ── */}
       {trips.length > 1 && (
         <ScrollView
-          className="mb-1"
+          className="mb-1 px-1"
           horizontal
           showsHorizontalScrollIndicator={false}
           style={{ maxHeight: 44 }}
-          contentContainerStyle={{ gap: 8, paddingHorizontal: 8, alignItems: 'center' }}
+          contentContainerStyle={{ gap: 8, alignItems: 'center' }}
         >
           {trips.map((t) => {
             const isSelected = t.id === trip?.id;
@@ -310,9 +253,9 @@ export default function AlertsCenterScreen() {
                 }}
                 className={`p-4 rounded-full ${isSelected ? "bg-tics-amber/35 border border-tics-amber/20" : ""} border border-tics-amber/20`}
                 >
-                  <Text style={{ fontFamily: 'Syne_500Medium', fontSize: 12, color: isSelected ? '#fff' : 'rgba(148,163,184,0.8)' }}>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular', fontSize: 12, color: isSelected ? '#fff' : 'rgba(148,163,184,0.8)' }}>
                     {t.title}
-                  </Text>
+                  </SafeText>
                 </View>
               </Pressable>
             );
@@ -321,29 +264,29 @@ export default function AlertsCenterScreen() {
       )}
 
       {/* ── Tab chips (All / Active / Updates) ── */}
-      <View className="flex-row gap-3 px-2 mt-2">
+      <View className="flex-row gap-3 mt-2 px-1">
         <TabChip id="all" label="All" count={counts.all} />
         <TabChip id="active" label="Active" count={counts.active} />
         <TabChip id="updates" label="Updates" count={counts.updates} />
       </View>
 
       {/* ── Count + mark all read ── */}
-      <View className="p-2 flex-row items-center justify-between gap-1 bg-tics-amber/25 border border-tics-amber/10 rounded-full px-2 mt-3">
-        <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[12px] text-slate-400 ml-2">
+      <View className="p-2 mx-1 flex-row items-center justify-between gap-1 bg-tics-amber/25 border border-tics-amber/10 rounded-full px-2 mt-3">
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-[12px] text-slate-400 ml-2">
           {filtered.length ? `${filtered.length} in view` : 'No alerts in this view'}
-        </Text>
+        </SafeText>
         <Pressable
           onPress={() => trip ? useAlertStore.getState().markAllRead(trip.id).catch(() => { }) : undefined}
           className="p-2 z-10 flex-row items-center justify-between gap-1 bg-tics-amber/25 border border-tics-amber/10 rounded-full px-4 py-3"
         >
           <Ionicons name="checkmark-done" size={17} color="#f8fafc" />
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[12px] text-white">Mark all read</Text>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-[12px] text-white">Mark all read</SafeText>
         </Pressable>
       </View>
 
       {/* ── Alert cards — severity shown as TAG on each card ── */}
       <ScrollView
-        className="mt-3 flex-1 px-2"
+        className="mt-3 flex-1 px-1"
         contentContainerStyle={{ gap: 12, paddingBottom: 12, paddingTop: 4 }}
         showsVerticalScrollIndicator={false}
       >
@@ -381,12 +324,12 @@ export default function AlertsCenterScreen() {
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     {/* Title + severity tag on same row */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <Text
-                        style={{ fontFamily: 'Syne_500Medium', color: '#f8fafc', fontSize: 14, flex: 1 }}
+                      <SafeText
+                        style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 14, flex: 1 }}
                         numberOfLines={2}
                       >
                         {a.title ?? 'Alert'}
-                      </Text>
+                      </SafeText>
                       {/* Colored severity tag — NOT a filter, just a label */}
                       <View
                         style={{
@@ -396,17 +339,17 @@ export default function AlertsCenterScreen() {
                         }}
                         className='rounded-full'
                       >
-                        <Text style={{ fontFamily: 'Syne_500Medium', color: s.tagText, fontSize: 10 }}>
+                        <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: s.tagText, fontSize: 10 }}>
                           {s.label}
-                        </Text>
+                        </SafeText>
                       </View>
                     </View>
 
-                    <Text
-                      style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 13, lineHeight: 20, marginTop: 6 }}
+                    <SafeText
+                      style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 13, lineHeight: 20, marginTop: 6 }}
                     >
                       {a.message ?? ''}
-                    </Text>
+                    </SafeText>
                   </View>
                 </View>
               </View>
@@ -428,15 +371,17 @@ export default function AlertsCenterScreen() {
             >
               <Ionicons name="notifications-off-outline" size={32} color="#f87171" />
             </LinearGradient>
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-center text-[16px] text-white">
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-center text-[16px] text-white">
               Nothing to review
-            </Text>
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-3 text-center text-[13px] leading-5 text-slate-400">
+            </SafeText>
+            <Text style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-3 text-center text-[13px] leading-5 text-slate-400">
               When monitoring detects delays, gate changes, or weather impacts they show up here with severity tags and clear next steps.
             </Text>
           </Card>
         )}
       </ScrollView>
+      {alertModal}
+      {optionsModal}
     </View>
   );
 }

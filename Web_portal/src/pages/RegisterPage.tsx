@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Shield, Eye, EyeOff, AlertCircle, User, Mail, Lock, Building2, LogIn } from 'lucide-react';
+import { Shield, Eye, EyeOff, AlertCircle, User, Mail, Lock, Building2, LogIn, Globe } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 export default function RegisterPage() {
@@ -8,6 +8,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [lodgeName, setLodgeName] = useState('');
+  const [country, setCountry] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { register, error, clearError } = useAuthStore();
@@ -19,7 +20,7 @@ export default function RegisterPage() {
     setSubmitting(true);
     clearError();
     try {
-      await register(email, password, name, lodgeName);
+      await register(email, password, name, lodgeName, country);
       navigate('/dashboard');
     } catch {
       // error is set in store
@@ -81,6 +82,16 @@ export default function RegisterPage() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5 ml-2">Country</label>
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  type="text" value={country} onChange={(e) => setCountry(e.target.value)}
+                  placeholder="Uganda" className="input-field pl-10" required
+                />
               </div>
             </div>
             <div>

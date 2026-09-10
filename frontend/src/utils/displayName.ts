@@ -9,11 +9,15 @@ export function emailLocalPart(email: string | null | undefined): string {
   return local || 'Traveler';
 }
 
-/** Saved profile name, otherwise email local-part (never placeholder names). */
+/** Saved profile name (first name only), otherwise email local-part (never placeholder names). */
 export function ticsDisplayName(user: AuthUser | null | undefined): string {
   if (!user) return 'Traveler';
   const n = user.name?.trim();
-  if (n) return n;
+  if (n) {
+    // Return only the first name
+    const firstName = n.split(/\s+/)[0] ?? n;
+    return firstName;
+  }
   return emailLocalPart(user.email);
 }
 

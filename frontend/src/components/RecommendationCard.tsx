@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 
 import Card from '@/src/components/Card';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 export type RecommendationCardProps = {
   kind: 'recommended_action' | 'smart_tip' | 'alternative_activity';
@@ -38,15 +39,15 @@ export default function RecommendationCard({
 
         <View className="ml-3 flex-1">
           <View className="flex-row items-center justify-between">
-            <Text className="text-tics-green text-[11px] font-extrabold tracking-wide">{meta.label}</Text>
+            <SafeText className="text-tics-green text-[11px] font-extrabold tracking-wide">{meta.label}</SafeText>
             <Ionicons name="chevron-down" size={18} color="rgba(234,242,255,0.55)" />
           </View>
-          <Text className="mt-2 text-tics-text text-[15px] font-extrabold">{title}</Text>
-          <Text className="mt-1 text-tics-muted text-[13px] leading-5">{message}</Text>
+          <SafeText className="mt-2 text-tics-text text-[15px] font-extrabold">{title}</SafeText>
+          <SafeText className="mt-1 text-tics-muted text-[13px] leading-5">{message}</SafeText>
 
           <View className="mt-4 items-end">
             <Pressable onPress={onPress} className="rounded-full bg-tics-green/25 px-5 py-2">
-              <Text className="text-tics-text text-[12px] font-bold">{ctaLabel}</Text>
+              <SafeText className="text-tics-text text-[12px] font-bold">{ctaLabel}</SafeText>
             </Pressable>
           </View>
         </View>

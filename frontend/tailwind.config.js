@@ -17,13 +17,17 @@ module.exports = {
           green: '#22C55E',
           green2: '#16A34A',
           red: '#EF4444',
-          amber: '#96C7B3',
+          // amber: '#96C7B3',
+          amber: '#1e56cd',
           blue: '#3B82F6',
           purple: '#8B5CF6',
         },
       },
       borderRadius: {
         '4xl': 34,
+      },
+      fontFamily: {
+        sharetech: ['ShareTech_400Regular', 'sans-serif'],
       },
     },
   },

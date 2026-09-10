@@ -15,7 +15,7 @@ interface AuthState {
   error: string | null;
   initialized: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, lodgeName?: string) => Promise<void>;
+  register: (email: string, password: string, name: string, lodgeName?: string, country?: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
@@ -45,7 +45,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       throw new Error(message);
     }
   },
-  register: async (email, password, name, lodgeName) => {
+  register: async (email, password, name, lodgeName, country) => {
     set({ loading: true, error: null });
     try {
       const auth = getFirebaseAuth();
@@ -53,7 +53,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const db = getFirebaseFirestore();
       const userData: OperatorUser = {
         name, email, role: 'operator',
-        lodgeName: lodgeName || '', createdAt: serverTimestamp(),
+        lodgeName: lodgeName || '', country: country || '', createdAt: serverTimestamp(),
       };
       await setDoc(doc(db, 'users', result.user.uid), userData);
       set({ user: result.user, operator: { ...userData, uid: result.user.uid }, loading: false });

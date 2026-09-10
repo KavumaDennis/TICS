@@ -1,5 +1,5 @@
-import SavedItemsScreen from '@/src/screens/SavedItemsScreen';
+import SavedPlacesScreen from '@/src/screens/SavedPlacesScreen';
 
 export default function SavedRoute() {
-  return <SavedItemsScreen />;
+  return <SavedPlacesScreen />;
 }

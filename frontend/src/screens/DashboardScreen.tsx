@@ -11,10 +11,11 @@
  *  - Full live monitoring, weather, alerts, recommendations
  *  - Dynamic status badge derived from getTripStatus()
  */
-import { useMemo, useState, memo } from 'react';
+import { useMemo, useState, memo, useEffect } from 'react';
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 
 import Card from '@/src/components/Card';
 import { useAuthStore } from '@/src/store/useAuthStore';
@@ -23,10 +24,17 @@ import { useAlertStore } from '@/src/store/alertStore';
 import { useRecommendationStore } from '@/src/store/recommendationStore';
 import { useWeatherStore } from '@/src/store/weatherStore';
 import { useFlightMonitoringStore } from '@/src/store/flightMonitoringStore';
+import { useUserDocStore } from '@/src/store/userDocStore';
+import { useRideTrackingStore } from '@/src/store/rideTrackingStore';
+import { listenToAssignment } from '@/src/services/RideStatusService';
+import { listenToActiveOperator } from '@/src/services/OperatorService';
 import { greetingFromEmailOrName, ticsDisplayName } from '@/src/utils/displayName';
 import { useTripStatus } from '@/src/hooks/useTripStatus';
+import { useTripType } from '@/src/hooks/useTripType';
 import { getTripStatus } from '@/src/utils/tripStatus';
 import PopularDestinations from '@/src/components/PopularDestinations';
+import DestinationInsights from '@/src/components/DestinationInsights';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 const CONTENT_PADDING = 16; // px-2 on both sides
 
@@ -37,10 +45,22 @@ const CarouselItem = memo(function CarouselItem({ t, alertsByTripId, recsByTripI
   const tripWeather = weatherStoreByTripId[t.id] ?? null;
   const tripFlight = flightStoreByTripId[t.id] ?? null;
   const { isCompleted, isCancelled, statusInfo } = useTripStatus(t, tripAlerts);
+  const { isLocal } = useTripType(t);
   const isCompletedOrCancelled = isCompleted || isCancelled;
   const activeAlerts = tripAlerts.filter((a: any) => a.active && !a.read).length;
   const urgentRecs = tripRecs.filter((r: any) => r.urgency === 'high').length;
   const depIn = t ? timeUntil(t.departureTime) : null;
+
+  // Calculate trip progress percentage
+  const tripProgress = useMemo(() => {
+    if (!t.departureTime || !t.arrivalTime) return 0;
+    const now = Date.now();
+    const dep = Date.parse(t.departureTime);
+    const arr = Date.parse(t.arrivalTime);
+    if (now <= dep) return 0;
+    if (now >= arr) return 100;
+    return Math.round(((now - dep) / (arr - dep)) * 100);
+  }, [t.departureTime, t.arrivalTime]);
 
   // Get status-based colors
   const statusColors: any = {
@@ -67,53 +87,82 @@ const CarouselItem = memo(function CarouselItem({ t, alertsByTripId, recsByTripI
         <Card accent={accentColor} className="px-6 py-6 rounded-4xl  bg-tics-amber/25 border border-tics-amber/10">
           <View className="flex-row items-start justify-between">
             <View className="flex-1 pr-3">
-              <Text
-                style={{ fontFamily: 'Syne_500Medium' }}
-                className="text-tics-blue text-[13px] font-semibold tracking-wide">ACTIVE TRIP</Text>
+              <SafeText
+                style={{ fontFamily: 'ShareTech_400Regular' }}
+                className="text-tics-blue text-[13px] font-semibold tracking-wide">ACTIVE TRIP</SafeText>
 
               <View className="flex-row items-center justify-between">
-                <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="mt-2 text-[17px] text-tics-text">{t.title}</Text>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-2 text-[17px] text-tics-text">{t.title}</SafeText>
                 <View style={{ borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: colors.bg }}>
-                  <Text style={{ fontFamily: 'Syne_700Bold', color: colors.text, fontSize: 11 }}>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: colors.text, fontSize: 11 }}>
                     {colors.label}
-                  </Text>
+                  </SafeText>
                 </View>
               </View>
 
-              <Text style={{ fontSize: 13, fontFamily: 'Syne_500Medium', borderBottomWidth: 1, borderBottomColor: isCompletedOrCancelled ? 'rgba(100,116,139,0.12)' : 'rgba(255,255,255,0.12)', fontWeight: '300' }} className={`mt-2 pb-2 text-[12px] ${isCompletedOrCancelled ? 'text-tics-muted/60' : 'text-tics-muted'}`}>
+              <SafeText style={{ fontSize: 13, fontFamily: 'ShareTech_400Regular', borderBottomWidth: 1, borderBottomColor: isCompletedOrCancelled ? 'rgba(100,116,139,0.12)' : 'rgba(255,255,255,0.12)', fontWeight: '300' }} className={`mt-2 pb-2 text-[12px] ${isCompletedOrCancelled ? 'text-tics-muted/60' : 'text-tics-muted'}`}>
                 {dateRange(t.departureTime, t.arrivalTime)}
-              </Text>
+              </SafeText>
 
               {/* Live mini-stats row — only for active trips */}
               {!isCompletedOrCancelled && (
                 <View style={{ flexDirection: 'row', gap: 16, marginTop: 10 }}>
                   {depIn && (
                     <View>
-                      <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 10 }}>DEPARTURE IN</Text>
-                      <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 14, marginTop: 2 }}>{depIn}</Text>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 10 }}>
+                        {depIn.startsWith('Departed') ? 'DEPARTED' : 'DEPARTURE IN'}
+                      </SafeText>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: depIn.startsWith('Departed') ? '#F59E0B' : '#f8fafc', fontSize: 14, marginTop: 2 }}>{depIn}</SafeText>
                     </View>
                   )}
                   {tripWeather?.tempC != null && (
                     <View>
-                      <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 10 }}>DEST. WEATHER</Text>
-                      <Text style={{ fontFamily: 'Syne_700Bold', color: '#FBBF24', fontSize: 14, marginTop: 2 }}>{Math.round(tripWeather.tempC)}°C</Text>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 10 }}>DEST. WEATHER</SafeText>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#FBBF24', fontSize: 14, marginTop: 2 }}>{Math.round(tripWeather.tempC)}°C</SafeText>
                     </View>
                   )}
                   {tripFlight?.gate && (
                     <View>
-                      <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 10 }}>GATE</Text>
-                      <Text style={{ fontFamily: 'Syne_700Bold', color: '#60A5FA', fontSize: 14, marginTop: 2 }}>{tripFlight.gate}</Text>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 10 }}>GATE</SafeText>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#60A5FA', fontSize: 14, marginTop: 2 }}>{tripFlight.gate}</SafeText>
                     </View>
                   )}
+                </View>
+              )}
+
+              {/* Trip progress bar */}
+              {!isCompletedOrCancelled && depIn && (
+                <View style={{ marginTop: 10 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 9 }}>
+                      {depIn.startsWith('Departed') ? 'In progress' : 'Not yet started'}
+                    </SafeText>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#64748b', fontSize: 9 }}>
+                      {tripProgress}%
+                    </SafeText>
+                  </View>
+                  <View style={{ height: 4, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' }}>
+                    <View style={{ 
+                      height: '100%', 
+                      width: `${Math.min(tripProgress, 100)}%`, 
+                      backgroundColor: tripProgress > 0 ? '#22C55E' : '#3B82F6',
+                      borderRadius: 2,
+                    }} />
+                  </View>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#64748b', fontSize: 9, marginTop: 4 }}>
+                    {t.departureTime && t.arrivalTime
+                      ? `${new Date(t.departureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} → ${new Date(t.arrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                      : ''}
+                  </SafeText>
                 </View>
               )}
 
               {/* Completed trip summary */}
               {isCompletedOrCancelled && (
                 <View style={{ marginTop: 10 }}>
-                  <Text style={{ fontFamily: 'Syne_500Medium', color: '#64748B', fontSize: 12 }}>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#64748B', fontSize: 12 }}>
                     {isCompleted ? 'Trip completed successfully' : 'Trip was cancelled'}
-                  </Text>
+                  </SafeText>
                 </View>
               )}
             </View>
@@ -135,8 +184,18 @@ function dateRange(departureIso?: string, arrivalIso?: string) {
 
 function timeUntil(isoStr?: string): string {
   if (!isoStr) return '';
-  const ms = Date.parse(isoStr) - Date.now();
-  if (ms <= 0) return 'Now';
+  const now = Date.now();
+  const depTime = Date.parse(isoStr);
+  const ms = depTime - now;
+  if (ms <= 0) {
+    // Departed — show time since departure
+    const elapsed = now - depTime;
+    const h = Math.floor(elapsed / 3_600_000);
+    const m = Math.floor((elapsed % 3_600_000) / 60_000);
+    if (h >= 24) return `Departed ${Math.floor(h / 24)}d ago`;
+    if (h > 0) return `Departed ${h}h ${m}m ago`;
+    return `Departed ${m}m ago`;
+  }
   const h = Math.floor(ms / 3_600_000);
   const m = Math.floor((ms % 3_600_000) / 60_000);
   if (h >= 24) return `${Math.ceil(h / 24)}d`;
@@ -165,6 +224,7 @@ export default function DashboardScreen() {
   const router = useRouter();
   const uid = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
+  const userDoc = useUserDocStore((s) => s.doc);
   const trips = useTripStore((s) => s.trips);
   const activeTripId = useTripStore((s) => s.activeTripId);
   const [selectedTripIndex, setSelectedTripIndex] = useState(0);
@@ -173,14 +233,16 @@ export default function DashboardScreen() {
   const recsByTripId = useRecommendationStore((s) => s.byTripId);
   const weatherStoreByTripId = useWeatherStore((s) => s.byTripId);
   const flightStoreByTripId = useFlightMonitoringStore((s) => s.byTripId);
+  const rideAssignment = useRideTrackingStore((s) => s.assignment);
+  const [activeOperator, setActiveOperator] = useState<{ id: string; operatorId: string; operatorName?: string } | null>(null);
 
-  // Sort trips: active first, then by departure time
+  // Sort trips: most recent first (by departure time DESC)
   const sortedTrips = useMemo(() => {
     if (!trips.length) return [];
     return [...trips].sort((a, b) => {
       const aTime = a.departureTime ? new Date(a.departureTime).getTime() : 0;
       const bTime = b.departureTime ? new Date(b.departureTime).getTime() : 0;
-      return aTime - bTime;
+      return bTime - aTime;
     });
   }, [trips]);
 
@@ -194,9 +256,26 @@ export default function DashboardScreen() {
     return statusInfo.status !== 'completed';
   }), [sortedTrips, flightStoreByTripId, alertsByTripId]);
 
-  const trip = activeTrips[selectedTripIndex] ?? null;
+  // Split display vs reference trip:
+  //   displayTrip — only active trips shown in the card area; null when no active trips
+  //   latestTrip — the most recent trip overall, used by quick actions even if completed
+  const displayTrip = activeTrips[selectedTripIndex] ?? null;
+  const latestTrip = sortedTrips[0] ?? null;
+  // Use displayTrip for the card rendering and monitoring cards
+  const trip = displayTrip;
   const weather = useMemo(() => (trip ? weatherStoreByTripId[trip.id] ?? null : null), [trip?.id, weatherStoreByTripId]);
   const flight = useMemo(() => (trip ? flightStoreByTripId[trip.id] ?? null : null), [trip?.id, flightStoreByTripId]);
+
+  // Calculate trip progress percentage for the single trip card
+  const tripProgress = useMemo(() => {
+    if (!trip?.departureTime || !trip?.arrivalTime) return 0;
+    const now = Date.now();
+    const dep = Date.parse(trip.departureTime);
+    const arr = Date.parse(trip.arrivalTime);
+    if (now <= dep) return 0;
+    if (now >= arr) return 100;
+    return Math.round(((now - dep) / (arr - dep)) * 100);
+  }, [trip?.departureTime, trip?.arrivalTime]);
 
   // Centralized trip status
   const {
@@ -214,12 +293,41 @@ export default function DashboardScreen() {
   const alerts = useMemo(() => (trip ? alertsByTripId[trip.id] ?? [] : []), [alertsByTripId, trip]);
   const recs = useMemo(() => (trip ? recsByTripId[trip.id] ?? [] : []), [recsByTripId, trip]);
 
+  // Listen to active operator for the current trip
+  useEffect(() => {
+    if (!uid || !trip?.id) return;
+    const unsub = listenToActiveOperator(uid, trip.id, (op) => {
+      setActiveOperator(op ? { id: op.id, operatorId: op.operatorId, operatorName: op.operatorName } : null);
+    });
+    return () => { unsub(); };
+  }, [uid, trip?.id]);
+
+  // Listen to ride assignment for the current trip
+  useEffect(() => {
+    if (!uid || !trip?.id) return;
+    const unsub = listenToAssignment(uid, trip.id, (snap) => {
+      if (snap) {
+        useRideTrackingStore.getState().setAssignment(snap.id, snap.data);
+      } else {
+        useRideTrackingStore.getState().clearAssignment();
+      }
+    });
+    return () => {
+      if (typeof unsub === 'function') unsub();
+    };
+  }, [uid, trip?.id]);
+
+  // Trip type classification
+  const { isLocal: isLocalTrip } = useTripType(trip);
+  const isLastMileApplicable = !isLocalTrip; // Local trips are road trips — no last-mile needed
+
   // Use CENTRALIZED status label — single source of truth across ALL screens.
   // The getTripStatus() function in tripStatus.ts handles all status derivation.
   // Do NOT override with custom logic here; use statusInfo.label everywhere.
   const dashboardStatusLabel = statusInfo.label;
 
   const greetingName = greetingFromEmailOrName(ticsDisplayName(user));
+  const profilePhotoURL = (userDoc as any)?.photoURL ?? null;
   const activeAlerts = alerts.filter((a) => a.active && !a.read).length;
   const urgentRecs = recs.filter((r) => r.urgency === 'high').length;
   const depIn = trip ? timeUntil(trip.departureTime) : null;
@@ -234,84 +342,138 @@ export default function DashboardScreen() {
     return { label: 'On Track', color: '#3B82F6', bg: 'rgba(59,130,246,0.15)' };
   }, [trip, isCompletedOrCancelled, flight]);
 
-  // Static content — memoized so it doesn't re-render on every store change
-  const staticFeatures = useMemo(() => (
-    <>
-      <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-amber ml-1">
-        Why Users Love TICS
-      </Text>
-      <View className="flex-1 flex-row flex-wrap gap-3 justify-between mt-3">
+  // Quick Actions — replaces the old "Why Users Love TICS" section
+  // Uses latestTrip (not displayTrip) so they reference the latest completed trip when no active trip
+  const quickActions = useMemo(() => {
+    const refTrip = latestTrip; // reference trip for navigation
+    const actions = [
+      {
+        key: 'add-trip',
+        icon: 'plus-circle-outline' as const,
+        iconFamily: 'MaterialCommunityIcons' as const,
+        label: 'Add Trip',
+        subtitle: 'Sync or enter manually',
+        color: '#3B82F6',
+        bgColor: 'rgba(59,130,246,0.15)',
+        onPress: () => router.push('/trip/add' as any),
+        disabled: !uid,
+      },
+      {
+        key: 'contact-operator',
+        icon: 'headset' as const,
+        iconFamily: 'MaterialCommunityIcons' as const,
+        label: 'Contact Operator',
+        subtitle: 'Get help & support',
+        color: '#F59E0B',
+        bgColor: 'rgba(245,158,11,0.15)',
+        onPress: () => {
+          if (refTrip) {
+            router.push(({ pathname: `/last-mile/operator-details`, params: { tripId: refTrip.id } } as any));
+          } else {
+            router.push('/operator/select' as any);
+          }
+        },
+        disabled: !uid,
+      },
+      {
+        key: 'last-mile',
+        icon: 'car' as const,
+        iconFamily: 'MaterialCommunityIcons' as const,
+        label: 'Last Mile',
+        subtitle: 'Request a ride',
+        color: '#22C55E',
+        bgColor: 'rgba(34,197,94,0.15)',
+        onPress: () => {
+          if (refTrip) {
+            router.push(({ pathname: `/last-mile/${refTrip.id}` } as any));
+          } else {
+            router.push('/trip/add' as any);
+          }
+        },
+        disabled: !uid,
+      },
+      {
+        key: 'recovery-trip',
+        icon: 'shield-check' as const,
+        iconFamily: 'MaterialCommunityIcons' as const,
+        label: 'Recovery Trip',
+        subtitle: 'Handle disruptions',
+        color: '#EF4444',
+        bgColor: 'rgba(239,68,68,0.15)',
+        onPress: () => {
+          if (refTrip) {
+            router.push(({ pathname: `/operator/recovery-trip/${refTrip.id}` } as any));
+          } else {
+            router.push('/trip/add' as any);
+          }
+        },
+        disabled: !uid,
+      },
+    ];
 
-        <Card className="p-3 rounded-3xl w-[48%] bg-tics-amber/25 border border-tics-amber/10">
-          <View className="w-10 h-10 rounded-full bg-tics-blue/30 border border-tics-blue/20 items-center justify-center">
-            <MaterialCommunityIcons name="reload" size={20} color="#3B82F6" />
-          </View>
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[14px] text-tics-text py-2">
-            Real-time
-            Monitoring
-          </Text>
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[11px] text-tics-muted">
-            Stay updated live
-          </Text>
-        </Card>
-
-        <Card className="p-3 rounded-3xl w-[48%] bg-tics-amber/25 border border-tics-amber/10">
-          <View className="w-10 h-10 rounded-full bg-tics-amber/20 border border-tics-amber/20 items-center justify-center">
-            <MaterialCommunityIcons name="bell-outline" size={20} color="#F59E0B" />
-          </View>
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[14px] text-tics-text py-2">
-            Proactive alerts
-          </Text>
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[11px] text-tics-muted">
-            Builds trust and habit
-          </Text>
-        </Card>
-
-        <Card className="p-3 rounded-3xl w-[48%] bg-tics-amber/25 border border-tics-amber/10">
-          <View className="w-10 h-10 rounded-full bg-tics-green/20 border border-tics-green/20 items-center justify-center">
-            <Ionicons name="star" size={20} color="#22C55E" />
-          </View>
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[14px] text-tics-text py-2">
-            AI Recommendations
-          </Text>
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[11px] text-tics-muted">
-            Builds trust and habit
-          </Text>
-        </Card>
-
-        <Card className="p-3 rounded-3xl w-[48%] bg-tics-amber/25 border border-tics-amber/10">
-          <View className="w-10 h-10 rounded-full bg-tics-purple/25 border border-tics-purple/20 items-center justify-center">
-            <MaterialIcons name="emoji-transportation" size={20} color="#8B5CF6" />
-          </View>
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[14px] text-tics-text py-2">
-            Last Mile Coordination
-          </Text>
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[11px] text-tics-muted">
-            End-to-end coverage
-          </Text>
-        </Card>
-
-      </View>
-    </>
-  ), []);
+    return (
+      <>
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber ml-1">
+          Quick Actions
+        </SafeText>
+        <View className="flex-row flex-wrap gap-3 justify-between mt-3">
+          {actions.map((action) => {
+            const IconComponent = action.iconFamily === 'MaterialCommunityIcons' ? MaterialCommunityIcons : Ionicons;
+            return (
+              <Pressable
+                key={action.key}
+                style={{ width: '48%' }}
+                onPress={action.onPress}
+                disabled={action.disabled}
+                className="active:opacity-90"
+              >
+                <View
+                  className={`p-3 rounded-3xl bg-tics-amber/35 border border-tics-amber/20 ${action.disabled ? 'opacity-50' : ''}`}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: action.bgColor.replace('0.15', '0.1'),
+                  }}
+                >
+                  <View
+                    className="w-10 h-10 rounded-full items-center justify-center"
+                    style={{
+                      backgroundColor: action.color.replace(')', ',0.2)').replace('rgb', 'rgba'),
+                    }}
+                  >
+                    <IconComponent name={action.icon as any} size={20} color="#fff" />
+                  </View>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-[14px] text-tics-text py-2">
+                    {action.label}
+                  </SafeText>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-[11px] text-tics-muted">
+                    {action.subtitle}
+                  </SafeText>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      </>
+    );
+  }, [uid, latestTrip, router]);
 
   return (
-    <View className="flex-1 pt-10 pb-4">
+    <View className="flex-1 pb-4 p-1">
       <View className="rounded-4xl bg-tics-amber/35 border border-tics-amber/20 p-5">
         <View className="flex-row items-start justify-between">
           <View className="flex-1">
-            <Text
+            <SafeText
               style={{
-                fontFamily: 'Syne_700Bold',
+                fontFamily: 'ShareTech_400Regular',
                 fontSize: 24,
               }}
-              className="text-tics-text">{greeting},</Text>
-            <Text
+              className="text-tics-text">{greeting},</SafeText>
+            <SafeText
               style={{
-                fontFamily: 'Syne_700Bold',
+                fontFamily: 'ShareTech_400Regular',
                 fontSize: 24,
               }}
-              className="text-tics-text text-[26px] tracking-tight capitalize">{greetingName}</Text>
+              className="text-tics-text text-[26px] tracking-tight capitalize">{greetingName}</SafeText>
           </View>
           <View className="flex-row items-center gap-2">
             <Pressable
@@ -327,47 +489,53 @@ export default function DashboardScreen() {
             <Pressable
               onPress={() => router.push('/profile' as any)}
               style={{ width: 46, height: 46 }}
-              className="items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20"
+              className="items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20 overflow-hidden"
             >
-              <Ionicons name="person" size={20} color="#fff" />
+              {profilePhotoURL ? (
+                <View style={{ width: 46, height: 46, overflow: 'hidden' }}>
+                  <Image source={{ uri: profilePhotoURL }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                </View>
+              ) : (
+                <Ionicons name="person" size={20} color="#fff" />
+              )}
             </Pressable>
           </View>
         </View>
         <View>
-          <Text
+          <SafeText
             style={{
-              fontFamily: 'Syne_500Medium',
+              fontFamily: 'ShareTech_400Regular',
             }}
             className="text-tics-muted mt-1">
             Here's your travel overview
-          </Text>
+          </SafeText>
         </View>
       </View>
 
-      <ScrollView className="px-2 mt-3" showsVerticalScrollIndicator={false}>
+      <ScrollView className="px-1 mt-3" showsVerticalScrollIndicator={false}>
         {!uid ? (
           <Card accent="blue" className="py-6">
+            <SafeText style={{
+              fontFamily: 'ShareTech_400Regular',
+            }} className="text-tics-amber text-[22px]">Welcome to TICS</SafeText>
             <Text style={{
-              fontFamily: 'Syne_500Medium',
-            }} className="text-tics-amber text-[22px]">Welcome to TICS</Text>
-            <Text style={{
-              fontFamily: 'Syne_500Medium',
+              fontFamily: 'ShareTech_400Regular',
             }} className="mt-2 text-tics-muted text-[12px] leading-5">
               Sign in to create trips, receive real-time monitoring, disruption alerts, and smart recommendations.
             </Text>
             <View className="mt-5 flex-row gap-3">
               <Pressable onPress={() => router.push('/auth/login')} className="flex-1 items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20 px-5 py-4">
-                <Text style={{
-                  fontFamily: 'Syne_700Bold',
-                }} className="text-center text-[14px] text-tics-text">Login</Text>
+                <SafeText style={{
+                  fontFamily: 'ShareTech_400Regular',
+                }} className="text-center text-[14px] text-tics-text">Login</SafeText>
               </Pressable>
               <Pressable
                 onPress={() => router.push('/auth/register')}
-                className="flex-1 rounded-full border border-[#96C7B3]/50 bg-white/[0.06] p-6"
+                className="flex-1 rounded-full border border-tics-amber/50 bg-white/[0.06] p-6"
               >
-                <Text style={{
-                  fontFamily: 'Syne_500Medium',
-                }} className="text-center text-[14px] text-tics-text">Create Account</Text>
+                <SafeText style={{
+                  fontFamily: 'ShareTech_400Regular',
+                }} className="text-center text-[14px] text-tics-text">Create Account</SafeText>
               </Pressable>
             </View>
           </Card>
@@ -448,64 +616,94 @@ export default function DashboardScreen() {
             <Card accent={isCompletedOrCancelled ? 'none' : 'blue'} className="px-6 py-6 bg-tics-amber/25 border border-tics-amber/10 rounded-4xl ">
               <View className="flex-row items-start justify-between">
                 <View className="flex-1 pr-3">
-                  <Text
-                    style={{ fontFamily: 'Syne_500Medium' }}
+                  <SafeText
+                    style={{ fontFamily: 'ShareTech_400Regular' }}
                     className={`text-[13px] font-semibold tracking-wide ${isCompletedOrCancelled ? 'text-tics-muted' : 'text-tics-blue'}`}>
-                    {isCompletedOrCancelled ? 'COMPLETED TRIP' : 'ACTIVE TRIP'}</Text>
+                    {isCompletedOrCancelled ? 'COMPLETED TRIP' : 'ACTIVE TRIP'}</SafeText>
 
                   <View className="flex-row items-center justify-between">
-                    <Text
-                      style={{ fontFamily: 'Syne_600SemiBold' }}
-                      className={`mt-2 text-[17px] ${isCompletedOrCancelled ? 'text-tics-muted' : 'text-tics-text'}`}>{trip.title}</Text>
+                    <SafeText
+                      style={{ fontFamily: 'ShareTech_400Regular' }}
+                      className={`mt-2 text-[17px] ${isCompletedOrCancelled ? 'text-tics-muted' : 'text-tics-text'}`}>{trip.title}</SafeText>
                     <View style={{ borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: statusInfo.bgColor }}>
-                      <Text style={{ fontFamily: 'Syne_700Bold', color: statusInfo.color, fontSize: 11 }}>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: statusInfo.color, fontSize: 11 }}>
                         {dashboardStatusLabel}
-                      </Text>
+                      </SafeText>
                     </View>
                   </View>
 
-                  <Text
+                  <SafeText
                     style={{
                       fontSize: 13,
-                      fontFamily: 'Syne_500Medium',
+                      fontFamily: 'ShareTech_400Regular',
                       borderBottomWidth: 1,
                       borderBottomColor: isCompletedOrCancelled ? 'rgba(100,116,139,0.12)' : 'rgba(255,255,255,0.12)',
                       fontWeight: '300',
                     }}
                     className={`mt-2 pb-2 text-[12px] ${isCompletedOrCancelled ? 'text-tics-muted/60' : 'text-tics-muted'}`}>
                     {dateRange(trip.departureTime, trip.arrivalTime)}
-                  </Text>
+                  </SafeText>
 
                   {/* Live mini-stats row — only for active trips */}
                   {showLiveTracking && (
                     <View style={{ flexDirection: 'row', justifyContent: "space-between", gap: 16, marginTop: 10 }}>
                       {depIn && (
                         <View>
-                          <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 10 }}>DEPARTURE IN</Text>
-                          <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 14, marginTop: 2 }}>{depIn}</Text>
+                          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 10 }}>
+                            {depIn.startsWith('Departed') ? 'DEPARTED' : 'DEPARTURE IN'}
+                          </SafeText>
+                          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: depIn.startsWith('Departed') ? '#F59E0B' : '#f8fafc', fontSize: 14, marginTop: 2 }}>{depIn}</SafeText>
                         </View>
                       )}
                       {weather?.tempC != null && (
                         <View>
-                          <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 10 }}>DEST. WEATHER</Text>
-                          <Text style={{ fontFamily: 'Syne_700Bold', color: '#FBBF24', fontSize: 14, marginTop: 2 }}>{Math.round(weather.tempC)}°C</Text>
+                          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 10 }}>DEST. WEATHER</SafeText>
+                          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#FBBF24', fontSize: 14, marginTop: 2 }}>{Math.round(weather.tempC)}°C</SafeText>
                         </View>
                       )}
                       {flight?.gate && (
                         <View>
-                          <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 10 }}>GATE</Text>
-                          <Text style={{ fontFamily: 'Syne_700Bold', color: '#60A5FA', fontSize: 14, marginTop: 2 }}>{flight.gate}</Text>
+                          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 10 }}>GATE</SafeText>
+                          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#60A5FA', fontSize: 14, marginTop: 2 }}>{flight.gate}</SafeText>
                         </View>
                       )}
+                    </View>
+                  )}
+
+                  {/* Trip progress bar */}
+                  {showLiveTracking && !isCompletedOrCancelled && depIn && (
+                    <View style={{ marginTop: 10 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 9 }}>
+                          {depIn.startsWith('Departed') ? 'In progress' : 'Not yet started'}
+                        </SafeText>
+                        <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#64748b', fontSize: 9 }}>
+                          {tripProgress}%
+                        </SafeText>
+                      </View>
+                      <View className='rounded-full' style={{ height: 6, backgroundColor: 'rgba(255,255,255,0.08)',overflow: 'hidden' }}>
+                        <View
+                        className='rounded-full'
+                         style={{ 
+                          height: '100%', 
+                          width: `${Math.min(tripProgress, 100)}%`, 
+                          backgroundColor: tripProgress > 0 ? '#22C55E' : '#3B82F6',
+                        }} />
+                      </View>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#64748b', fontSize: 9, marginTop: 4 }}>
+                        {trip.departureTime && trip.arrivalTime
+                          ? `${new Date(trip.departureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} → ${new Date(trip.arrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                          : ''}
+                      </SafeText>
                     </View>
                   )}
 
                   {/* Completed trip summary */}
                   {isCompletedOrCancelled && (
                     <View style={{ marginTop: 10 }}>
-                      <Text style={{ fontFamily: 'Syne_500Medium', color: '#64748B', fontSize: 12 }}>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#64748B', fontSize: 12 }}>
                         {isCompleted ? 'Trip completed successfully' : 'Trip was cancelled'}
-                      </Text>
+                      </SafeText>
                     </View>
                   )}
                 </View>
@@ -514,48 +712,48 @@ export default function DashboardScreen() {
           </Pressable>
         ) : (
           <Card accent="purple" className="py-6">
-            <Text
+            <SafeText
               style={{
-                fontFamily: 'Syne_700Bold',
+                fontFamily: 'ShareTech_400Regular',
               }}
-              className="text-tics-text text-[22px]">Add your trip</Text>
-            <Text
+              className="text-tics-amber ml-1 text-[22px]">Add your trip</SafeText>
+            <SafeText
               style={{
-                fontFamily: 'Syne_500Medium',
+                fontFamily: 'ShareTech_400Regular',
                 fontSize: 13,
               }}
-              className="mt-2 text-tics-muted text-[12px] leading-5">
+              className="mt-2 ml-1 text-tics-muted text-[12px] leading-5">
               Sync from email, import a booking, or enter manually to unlock monitoring.
-            </Text>
+            </SafeText>
             <Pressable
               onPress={() => router.push('/trip/add' as any)} className="mt-5 rounded-full p-6 bg-tics-amber/35 border border-tics-amber/20">
-              <Text
+              <SafeText
                 style={{
-                  fontFamily: 'Syne_700Bold',
+                  fontFamily: 'ShareTech_400Regular',
                 }}
-                className="text-center text-[13px] text-white">Add Trip</Text>
+                className="text-center text-[13px] text-white">Add Trip</SafeText>
             </Pressable>
           </Card>
         )}
 
         {trip ? (
           <Card accent="none" className="mt-5">
-            <View className="flex-1 flex-row flex-wrap justify-between gap-3">
+            <View className="flex-row flex-wrap justify-between gap-3">
               {/* Trip Status card — always visible */}
 
-              <Pressable
+              {/* <Pressable
                 style={{ width: '48%' }}
                 onPress={() => router.push(({ pathname: `/trips/${trip.id}` } as any))}
                 className="active:opacity-90">
                 <View className="flex-row items-center rounded-3xl bg-tics-amber/25 border border-tics-amber/10 px-3 py-3">
                   <View className="flex-1">
-                    <Text style={{ fontFamily: 'Syne_500Medium', fontWeight: '500' }} className="text-tics-text self-start text-[13px]">Trip Status</Text>
-                    <Text style={{ fontFamily: 'Syne_500Medium', backgroundColor: statusInfo.bgColor, borderWidth: 1, borderColor: statusInfo.bgColor, color: statusInfo.color }} className="mt-3 self-start py-1 px-2 rounded-full text-[12px]" numberOfLines={1}>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', fontWeight: '500' }} className="text-tics-text self-start text-[13px]">Trip Status</SafeText>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', backgroundColor: statusInfo.bgColor, borderWidth: 1, borderColor: statusInfo.bgColor, color: statusInfo.color }} className="mt-3 self-start py-1 px-2 rounded-full text-[12px]" numberOfLines={1}>
                       {dashboardStatusLabel}
-                    </Text>
+                    </SafeText>
                   </View>
                 </View>
-              </Pressable>
+              </Pressable> */}
 
               {[
                 {
@@ -596,16 +794,22 @@ export default function DashboardScreen() {
                   key: 'lastmile',
                   icon: 'car' as const,
                   label: 'Last Mile',
-                  status: isCompletedOrCancelled
-                    ? 'Completed'
-                    : trip.lastMileStatus === 'none'
-                      ? 'Plan pickup'
-                      : trip.lastMileStatus === 'in_progress'
-                        ? 'En route'
-                        : 'Arranged',
-                  statusColor: isCompletedOrCancelled ? 'rgba(150,199,179,0.6)' : trip.lastMileStatus === 'none' ? '#F59E0B' : '#A855F7',
-                  statusBg: isCompletedOrCancelled ? 'rgba(150,199,179,0.4)' : trip.lastMileStatus === 'none' ? 'rgba(245,158,11,0.15)' : 'rgba(168,85,247,0.15)',
-                  onPress: () => isCompletedOrCancelled ? router.push(({ pathname: `/trips/${trip.id}` } as any)) : router.push(({ pathname: `/last-mile/${trip.id}` } as any)),
+                  status: isLocalTrip
+                    ? 'Road trip'
+                    : isCompletedOrCancelled
+                      ? 'Completed'
+                      : !activeOperator
+                        ? 'No operator'
+                        : !rideAssignment?.driverId
+                          ? 'Not arranged'
+                          : 'Arranged',
+                  statusColor: isLocalTrip ? '#22C55E' : isCompletedOrCancelled ? 'rgba(150,199,179,0.6)' : !activeOperator ? '#EF4444' : !rideAssignment?.driverId ? '#F59E0B' : '#22C55E',
+                  statusBg: isLocalTrip ? 'rgba(34,197,94,0.1)' : isCompletedOrCancelled ? 'rgba(150,199,179,0.4)' : !activeOperator ? 'rgba(239,68,68,0.15)' : !rideAssignment?.driverId ? 'rgba(245,158,11,0.15)' : 'rgba(34,197,94,0.1)',
+                  onPress: () => isLocalTrip
+                    ? router.push(({ pathname: `/trips/${trip.id}` } as any))
+                    : isCompletedOrCancelled
+                      ? router.push(({ pathname: `/trips/${trip.id}` } as any))
+                      : router.push(({ pathname: `/last-mile/${trip.id}` } as any)),
                 },
               ].map((row) => (
                 <Pressable
@@ -616,12 +820,12 @@ export default function DashboardScreen() {
                 >
                   <View className="flex-row items-center rounded-3xl bg-tics-amber/25 border border-tics-amber/10 pl-3 pr-2 py-3">
                     <View className="flex-1">
-                      <Text style={{ fontFamily: 'Syne_500Medium', fontWeight: '500' }} className={`text-[13px] font-extrabold ${isCompletedOrCancelled ? 'text-tics-muted' : 'text-tics-text'}`}>{row.label}</Text>
-                      <Text
-                        style={{ fontFamily: 'Syne_500Medium', backgroundColor: row.statusBg, borderWidth: 1, borderColor: row.statusBg, color: row.statusColor }}
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular', fontWeight: '500' }} className={`text-[13px] font-extrabold ${isCompletedOrCancelled ? 'text-tics-muted' : 'text-tics-text'}`}>{row.label}</SafeText>
+                      <SafeText
+                        style={{ fontFamily: 'ShareTech_400Regular', backgroundColor: row.statusBg, borderWidth: 1, borderColor: row.statusBg, color: row.statusColor }}
                         className="mt-3 py-1 px-2 self-start rounded-full text-[12px]"
                         numberOfLines={1}
-                      >{row.status}</Text>
+                      >{row.status}</SafeText>
                     </View>
                   </View>
                 </Pressable>
@@ -635,7 +839,11 @@ export default function DashboardScreen() {
         )}
 
         <View className="mt-5">
-          {staticFeatures}
+          <DestinationInsights />
+        </View>
+
+        <View className="mt-5">
+          {quickActions}
         </View>
       </ScrollView>
     </View>

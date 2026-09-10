@@ -1,0 +1,263 @@
+﻿/**
+ * useExplore.ts
+ * â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+ * Main explore hook that orchestrates loading categories, destinations,
+ * trending, recommendations, recently viewed, journey feed, events,
+ * weekend escapes, and nearby places.
+ * Uses cache-first strategy with Firestore fallback.
+ * Falls back to hardcoded sample data when Firestore returns empty/errors.
+ * â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+ */
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useAuthStore } from '@/src/store/useAuthStore';
+import { ExploreEngine } from '@/src/modules/explore/services';
+import { ExploreCacheService } from '@/src/modules/explore/services/ExploreCacheService';
+import type {
+  ExploreCategory,
+  Destination,
+  ExploreRecommendation,
+  JourneyFeedItem,
+  Event,
+  WeekendEscape,
+  NearbyItem,
+  ExploreState,
+} from '@/src/modules/explore/types';
+
+/* â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+interface UseExploreReturn extends ExploreState {
+  refresh: () => Promise<void>;
+  loadMoreFeed: () => Promise<void>;
+  loadMoreTrending: () => Promise<void>;
+  saveDestination: (destinationId: string) => Promise<boolean>;
+  unsaveDestination: (destinationId: string) => Promise<boolean>;
+}
+
+/* â”€â”€ Initial State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+const INITIAL_STATE: ExploreState = {
+  categories: [],
+  trending: [],
+  popular: [],
+  featured: [],
+  recommendations: [],
+  journeyFeed: [],
+  recentlyViewed: [],
+  nearby: [],
+  events: [],
+  weekendEscapes: [],
+  loading: true,
+  error: null,
+};
+
+/* â”€â”€ Hook â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+export function useExplore(userLocation?: { lat: number; lng: number }): UseExploreReturn {
+  const [state, setState] = useState<ExploreState>(INITIAL_STATE);
+  const [feedCursor, setFeedCursor] = useState<string | null>(null);
+  const [trendingCursor, setTrendingCursor] = useState<string | null>(null);
+  const loadingRef = useRef(false);
+
+  const user = useAuthStore((s: any) => s.user);
+  const userId = user?.uid ?? '';
+
+  /* â”€â”€ Load all explore data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+  const loadExploreData = useCallback(async (isRefresh = false) => {
+    if (loadingRef.current && !isRefresh) return;
+    loadingRef.current = true;
+
+    setState((prev) => ({ ...prev, loading: true, error: null }));
+
+    try {
+      console.log('[useExplore] Starting data load with userLocation:', userLocation);
+      
+      // Use the new ExploreEngine which integrates DiscoveryOrchestrator
+      const homeData = await ExploreEngine.loadExploreHome({
+        userId: userId || undefined,
+        location: userLocation,
+      });
+
+      console.log('[useExplore] Received homeData:', {
+        categories: homeData.categories.length,
+        sections: homeData.sections.length,
+        events: homeData.events.length,
+        nearby: homeData.nearby.length,
+        weekendEscapes: homeData.weekendEscapes.length,
+        journeyFeed: homeData.journeyFeed.length,
+        providersUsed: homeData.providersUsed,
+      });
+
+      // Log detailed section info
+      homeData.sections.forEach((section, idx) => {
+        console.log(`[useExplore] Section ${idx}: ${section.type} - ${section.items.length} items - ${section.title}`);
+      });
+
+      // Log sample data from each section
+      console.log('[useExplore] â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•');
+      console.log('[useExplore] DATA SUMMARY:');
+      console.log('[useExplore] â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•');
+      
+      if (homeData.categories.length > 0) {
+        console.log('[useExplore] Categories:', homeData.categories.slice(0, 5).map(c => c.name));
+      } else {
+        console.log('[useExplore] Categories: (empty)');
+      }
+      
+      const trendingItems = homeData.sections.find(s => s.type === 'trending')?.items || [];
+      if (trendingItems.length > 0) {
+        console.log('[useExplore] Trending:', trendingItems.slice(0, 5).map((d: any) => d.name));
+      } else {
+        console.log('[useExplore] Trending: (empty)');
+      }
+      
+      const popularItems = homeData.sections.find(s => s.type === 'popular')?.items || [];
+      if (popularItems.length > 0) {
+        console.log('[useExplore] Popular:', popularItems.slice(0, 5).map((d: any) => d.name));
+      } else {
+        console.log('[useExplore] Popular: (empty)');
+      }
+      
+      if (homeData.events.length > 0) {
+        console.log('[useExplore] Events:', homeData.events.slice(0, 5).map(e => e.title));
+      } else {
+        console.log('[useExplore] Events: (empty)');
+      }
+      
+      if (homeData.nearby.length > 0) {
+        console.log('[useExplore] Nearby:', homeData.nearby.slice(0, 5).map(n => n.name));
+      } else {
+        console.log('[useExplore] Nearby: (empty)');
+      }
+      
+      if (homeData.weekendEscapes.length > 0) {
+        console.log('[useExplore] Weekend Escapes:', homeData.weekendEscapes.slice(0, 5).map(e => e.destination?.name || e.id));
+      } else {
+        console.log('[useExplore] Weekend Escapes: (empty)');
+      }
+      
+      if (homeData.journeyFeed.length > 0) {
+        console.log('[useExplore] Journey Feed:', homeData.journeyFeed.slice(0, 5).map(f => f.title));
+      } else {
+        console.log('[useExplore] Journey Feed: (empty)');
+      }
+      
+      if (homeData.recommendations.length > 0) {
+        console.log('[useExplore] Recommendations:', homeData.recommendations.slice(0, 5).map(r => r.destination?.name));
+      } else {
+        console.log('[useExplore] Recommendations: (empty)');
+      }
+      
+      if (homeData.recentlyViewed.length > 0) {
+        console.log('[useExplore] Recently Viewed:', homeData.recentlyViewed.slice(0, 5).map(d => d.name));
+      } else {
+        console.log('[useExplore] Recently Viewed: (empty)');
+      }
+      
+      console.log('[useExplore] Providers used:', homeData.providersUsed);
+      console.log('[useExplore] â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•');
+
+      // Update state with fresh data from DiscoveryOrchestrator
+      setState((prev) => ({
+        ...prev,
+        categories: homeData.categories,
+        trending: trendingItems,
+        popular: popularItems,
+        featured: homeData.sections.find(s => s.type === 'weekend')?.items || [],
+        recommendations: homeData.recommendations,
+        recentlyViewed: homeData.recentlyViewed,
+        journeyFeed: homeData.journeyFeed,
+        events: homeData.events,
+        nearby: homeData.nearby,
+        weekendEscapes: homeData.weekendEscapes,
+        loading: false,
+        error: null,
+      }));
+
+      console.log('[useExplore] State updated with new data');
+
+      console.log('[useExplore] Successfully loaded data via DiscoveryOrchestrator');
+    } catch (err) {
+      console.error('[useExplore] Error loading data:', err);
+      // Set error state instead of using fallback data
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: err instanceof Error ? err.message : 'Failed to load explore data. Please check your connection and try again.',
+      }));
+    } finally {
+      loadingRef.current = false;
+    }
+  }, [userId, userLocation]);
+
+  /* â”€â”€ Load on mount â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+  useEffect(() => {
+    loadExploreData();
+  }, [loadExploreData]);
+
+  /* â”€â”€ Refresh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+  const refresh = useCallback(async () => {
+    // Clear cache to ensure fresh data
+    await ExploreCacheService.clearAllExploreCache();
+    console.log('[useExplore] Cache cleared for refresh');
+    await loadExploreData(true);
+  }, [loadExploreData]);
+
+  /* â”€â”€ Load More Feed Items â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+  const loadMoreFeed = useCallback(async () => {
+    if (!feedCursor) return;
+    try {
+      const result = await ExploreEngine.loadJourneyFeed({ cursor: feedCursor });
+      if (result.data.length) {
+        setState((prev) => ({ ...prev, journeyFeed: [...prev.journeyFeed, ...result.data] }));
+        setFeedCursor(result.lastCursor);
+      }
+    } catch (err) {
+      console.error('[useExplore] Error loading more feed:', err);
+    }
+  }, [feedCursor]);
+
+  /* â”€â”€ Load More Trending â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+  const loadMoreTrending = useCallback(async () => {
+    if (!trendingCursor) return;
+    try {
+      const result = await ExploreEngine.loadDestinations({ trending: true, cursor: trendingCursor });
+      if (result.data.length) {
+        setState((prev) => ({ ...prev, trending: [...prev.trending, ...result.data] }));
+        setTrendingCursor(result.lastCursor);
+      }
+    } catch (err) {
+      console.error('[useExplore] Error loading more trending:', err);
+    }
+  }, [trendingCursor]);
+
+  /* â”€â”€ Save/Unsave Destination â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+  const saveDestination = useCallback(async (destinationId: string): Promise<boolean> => {
+    if (!userId) return false;
+    const success = await ExploreEngine.saveDestination(userId, destinationId);
+    if (success) ExploreEngine.trackAnalyticsEvent(userId, 'destination_saved', { destinationId });
+    return success;
+  }, [userId]);
+
+  const unsaveDestination = useCallback(async (destinationId: string): Promise<boolean> => {
+    if (!userId) return false;
+    return ExploreEngine.unsaveDestination(userId, destinationId);
+  }, [userId]);
+
+  /* â”€â”€ Return â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+  return {
+    ...state,
+    refresh,
+    loadMoreFeed,
+    loadMoreTrending,
+    saveDestination,
+    unsaveDestination,
+  };
+}

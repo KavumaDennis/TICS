@@ -1,109 +1,156 @@
-import { useEffect, useMemo, useState } from 'react';
+/**
+ * MyPickupScreen.tsx
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Replaced the old "My Pickup" screen with a "Request a Ride" feature.
+ * Travelers can press a single "Request Ride" button to create a ride request
+ * that goes directly to their selected tour operator.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Linking } from 'react-native';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { getFirebaseFirestore } from '@/src/firebase/firebaseApp';
 
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useTripStore } from '@/src/store/tripStore';
+import { getActiveOperator } from '@/src/services/OperatorService';
+import { createRideRequest, listenToTravelerRideRequests } from '@/src/services/RideRequestService';
+import { getCurrentPosition } from '@/src/services/LocationService';
 import PersistentTabBar from '@/src/components/PersistentTabBar';
-
-const STATUS_CFG: Record<string, { color: string; label: string; icon: string }> = {
-  assigned: { color: '#3B82F6', label: 'Assigned', icon: 'car' },
-  en_route: { color: '#F59E0B', label: 'En Route', icon: 'navigate' },
-  arrived: { color: '#22C55E', label: 'Arrived', icon: 'location' },
-  picked_up: { color: '#8B5CF6', label: 'Picked Up', icon: 'checkmark-circle' },
-  completed: { color: '#10B981', label: 'Completed', icon: 'checkmark-done-circle' },
-  cancelled: { color: '#EF4444', label: 'Cancelled', icon: 'close-circle' },
-};
+import type { RideRequestDoc } from '@/src/firebase/lastMileTypes';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 export default function MyPickupScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const uid = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const trips = useTripStore((s) => s.trips);
 
-  // Find the active trip (one with lastMileStatus not 'none' or 'scheduled')
-  const activeTrip = useMemo(
-    () => trips.find((t) => t.lastMileStatus && t.lastMileStatus !== 'none' && t.lastMileStatus !== 'scheduled') ?? null,
-    [trips],
-  );
+  const [activeTripId, setActiveTripId] = useState<string | null>(null);
+  const [operatorId, setOperatorId] = useState<string | null>(null);
+  const [operatorName, setOperatorName] = useState('');
+  const [loadingOp, setLoadingOp] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [recentRequests, setRecentRequests] = useState<(RideRequestDoc & { id: string })[]>([]);
+  const [pickupLocation, setPickupLocation] = useState('');
+  const [destination, setDestination] = useState('');
+  const [notes, setNotes] = useState('');
+  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [useCurrentLocation, setUseCurrentLocation] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
-  const [assignment, setAssignment] = useState<{ driverName: string; driverPhone: string; vehicle: string; plateNumber: string; eta: string; status: string } | null>(null);
+  // Find the most recent active trip
+  const activeTrip = trips
+    .filter(t => t.status !== 'completed' && t.status !== 'canceled')
+    .sort((a, b) => new Date(b.departureTime || '').getTime() - new Date(a.departureTime || '').getTime())[0];
 
-  // Load assignment for active trip
   useEffect(() => {
-    if (!activeTrip?.id) return;
-    const db = getFirebaseFirestore();
-    const q = query(collection(db, 'assignments'), where('tripId', '==', activeTrip.id), where('travelerId', '==', uid));
-    const unsub = onSnapshot(q, (snap) => {
-      if (!snap.empty) {
-        const data = snap.docs[0].data();
-        setAssignment({
-          driverName: data.driverName || '',
-          driverPhone: data.driverPhone || '',
-          vehicle: data.vehicle || '',
-          plateNumber: data.plateNumber || '',
-          eta: data.eta || '',
-          status: data.status || 'assigned',
-        });
+    if (!uid) return;
+
+    const tId = activeTrip?.id;
+    if (tId) {
+      setActiveTripId(tId);
+
+      (async () => {
+        const active = await getActiveOperator(uid, tId);
+        if (active) {
+          setOperatorId(active.operatorId);
+          setOperatorName(active.operatorName || 'your operator');
+        } else {
+          setOperatorId(null);
+        }
+        setLoadingOp(false);
+      })();
+
+      const unsub = listenToTravelerRideRequests(uid, tId, (requests) => {
+        setRecentRequests(requests.filter(r => r.status === 'pending' || r.status === 'accepted' || r.status === 'assigned'));
+      });
+
+      return () => unsub();
+    } else {
+      setLoadingOp(false);
+    }
+  }, [uid, activeTrip?.id]);
+
+  const handleUseCurrentLocation = useCallback(async () => {
+    try {
+      const loc = await getCurrentPosition();
+      if (loc) {
+        setPickupCoords({ lat: loc.latitude, lng: loc.longitude });
+        setPickupLocation(`${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`);
+        setUseCurrentLocation(true);
       } else {
-        setAssignment(null);
+        Alert.alert('Error', 'Could not get current location. Please enter manually.');
       }
-    });
-    return () => unsub();
-  }, [activeTrip?.id, uid]);
+    } catch {
+      Alert.alert('Error', 'Location permission required. Please enter manually.');
+    }
+  }, []);
 
-  const status = activeTrip?.lastMileStatus ?? 'none';
-  const statusCfg = STATUS_CFG[status] ?? { color: '#64748B', label: 'No Pickup', icon: 'car-outline' };
-
-  const handleCall = async () => {
-    console.log('Call button pressed');
-    if (!assignment?.driverPhone) {
-      console.log('No driver phone available');
+  const handleRequestRide = useCallback(async () => {
+    if (!uid || !operatorId || !activeTripId) {
+      if (!operatorId) {
+        Alert.alert(
+          'No Operator Selected',
+          'Please go to the Bookings screen and select a tour operator first.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Select Operator', onPress: () => router.push({ pathname: '/operator/select' as any, params: { tripId: activeTripId } } as any) },
+          ]
+        );
+      }
       return;
     }
-    const url = `tel:${assignment.driverPhone}`;
-    console.log('Opening dialer:', url);
-    try {
-      const supported = await Linking.canOpenURL(url);
-      console.log('Dialer supported:', supported);
-      if (!supported) {
-        console.error('Cannot open dialer app');
-        return;
-      }
-      await Linking.openURL(url);
-      console.log('Dialer opened successfully');
-    } catch (err) {
-      console.error('Failed to open dialer:', err);
-    }
-  };
-
-  const handleWhatsApp = async () => {
-    console.log('WhatsApp button pressed');
-    if (!assignment?.driverPhone) {
-      console.log('No driver phone available for WhatsApp');
+    if (!pickupLocation.trim() || !destination.trim()) {
+      Alert.alert('Required', 'Please enter pickup and destination locations.');
       return;
     }
-    // Remove leading + and any non-digit characters for wa.me
-    const phone = assignment.driverPhone.replace(/[^0-9]/g, '');
-    const message = encodeURIComponent('Hello, I am your assigned traveler for the TICS pickup. I would like to confirm our pickup arrangements.');
-    const url = `https://wa.me/${phone}?text=${message}`;
-    console.log('Opening WhatsApp:', url);
+
+    setSubmitting(true);
     try {
-      const supported = await Linking.canOpenURL(url);
-      console.log('WhatsApp supported:', supported);
-      if (!supported) {
-        console.error('Cannot open WhatsApp app or browser');
-        return;
-      }
-      await Linking.openURL(url);
-      console.log('WhatsApp opened successfully');
-    } catch (err) {
-      console.error('Failed to open WhatsApp:', err);
+      await createRideRequest(
+        uid,
+        operatorId,
+        activeTripId,
+        pickupLocation.trim(),
+        pickupCoords?.lat,
+        pickupCoords?.lng,
+        destination.trim(),
+        undefined,
+        undefined,
+        notes.trim(),
+        user?.name || user?.email || 'Traveler',
+      );
+
+      Alert.alert(
+        'Ride Requested!',
+        `Your request has been sent to ${operatorName}. They will assign a driver shortly.`,
+        [{ text: 'OK' }],
+      );
+
+      // Reset form
+      setPickupLocation('');
+      setDestination('');
+      setNotes('');
+      setPickupCoords(null);
+      setUseCurrentLocation(false);
+      setShowForm(false);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to create ride request');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [uid, operatorId, activeTripId, pickupLocation, destination, notes, pickupCoords, operatorName, user, router]);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending': return { color: '#F59E0B', bg: 'rgba(245,158,11,0.15)', icon: 'time' };
+      case 'accepted': return { color: '#3B82F6', bg: 'rgba(59,130,246,0.15)', icon: 'checkmark-circle' };
+      case 'assigned': return { color: '#22C55E', bg: 'rgba(34,197,94,0.15)', icon: 'car' };
+      case 'in_progress': return { color: '#8B5CF6', bg: 'rgba(139,92,246,0.15)', icon: 'navigate' };
+      default: return { color: '#64748b', bg: 'rgba(100,116,139,0.15)', icon: 'ellipse' };
     }
   };
 
@@ -111,171 +158,231 @@ export default function MyPickupScreen() {
     <View className="flex-1" style={{ paddingTop: insets.top + 8 }}>
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 8, paddingBottom: 12 }}>
-        <Pressable
-          onPress={() => router.back()}
-          className="border border-[#96C7B3]/50 bg-white/[0.06]"
-          style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}
-        >
-          <Ionicons name="chevron-back" size={20} color="rgba(248,250,252,0.9)" />
-        </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 18 }}>My Pickup</Text>
-          <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 11 }} numberOfLines={1}>
-            {activeTrip ? `Arriving at ${activeTrip.to}` : 'No active trip'}
-          </Text>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 18 }}>Request a Ride</SafeText>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 11 }}>
+            {operatorName ? `Your operator: ${operatorName}` : activeTrip ? 'Select an operator first' : 'No active trip'}
+          </SafeText>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={{ gap: 14, paddingHorizontal: 8, paddingBottom: 112 }} showsVerticalScrollIndicator={false}>
-
         {!activeTrip ? (
-          /* Empty state */
+          /* No active trip */
           <View style={{ borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.04)', padding: 24, alignItems: 'center', gap: 12 }}>
             <Ionicons name="car-outline" size={48} color="rgba(248,250,252,0.15)" />
-            <Text style={{ fontFamily: 'Syne_600SemiBold', color: '#94a3b8', fontSize: 14 }}>
-              No pickup assigned
-            </Text>
-            <Text style={{ fontFamily: 'Syne_500Medium', color: '#64748b', fontSize: 12, textAlign: 'center', lineHeight: 18 }}>
-              When an operator assigns a driver to your trip, you'll see the details here.
-            </Text>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 14 }}>
+              No active trip
+            </SafeText>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#64748b', fontSize: 12, textAlign: 'center', lineHeight: 18 }}>
+              Create a trip first to request rides during your stay.
+            </SafeText>
+          </View>
+        ) : !operatorId ? (
+          /* No operator selected */
+          <View style={{ borderRadius: 18, borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)', backgroundColor: 'rgba(245,158,11,0.08)', padding: 24, alignItems: 'center', gap: 12 }}>
+            <Ionicons name="alert-circle" size={40} color="#F59E0B" />
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#F59E0B', fontSize: 14 }}>
+              No Tour Operator Selected
+            </SafeText>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 12, textAlign: 'center', lineHeight: 18 }}>
+              Please go to the Bookings screen to select a tour operator who will manage your rides during this trip.
+            </SafeText>
+            <Pressable
+              onPress={() => router.push({ pathname: '/operator/select' as any, params: { tripId: activeTripId } } as any)}
+              style={{ marginTop: 8, borderRadius: 20, backgroundColor: '#F59E0B', paddingVertical: 14, paddingHorizontal: 32 }}
+            >
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#fff', fontSize: 14 }}>
+                Select Operator
+              </SafeText>
+            </Pressable>
           </View>
         ) : (
           <>
-            {/* Status Banner */}
-            <View style={{ borderRadius: 18, backgroundColor: `${statusCfg.color}15`, padding: 20, borderWidth: 1, borderColor: `${statusCfg.color}30` }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: `${statusCfg.color}25`, alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name={statusCfg.icon as any} size={24} color={statusCfg.color} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 16 }}>
-                    {statusCfg.label}
-                  </Text>
-                  <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 12, marginTop: 2 }}>
-                    {activeTrip.title}
-                  </Text>
-                </View>
+            {/* Trip context */}
+            <View style={{ borderRadius: 18, backgroundColor: 'rgba(139,92,246,0.10)', padding: 16, borderWidth: 1, borderColor: 'rgba(139,92,246,0.20)' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="airplane" size={16} color="#A78BFA" />
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 13 }}>
+                  {activeTrip.title || activeTrip.to}
+                </SafeText>
               </View>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 11, marginTop: 4 }}>
+                Assigned to: {operatorName}
+              </SafeText>
             </View>
 
-            {/* Trip Info */}
-            <View style={{ borderRadius: 18, backgroundColor: 'rgba(139,92,246,0.10)', padding: 20, borderWidth: 1, borderColor: 'rgba(139,92,246,0.20)' }}>
-              <Text style={{ fontFamily: 'Syne_600SemiBold', color: '#A78BFA', fontSize: 11, letterSpacing: 0.8, marginBottom: 12 }}>
-                TRIP DETAILS
-              </Text>
-
-              {activeTrip.flightNumber && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <Ionicons name="airplane" size={16} color="#A78BFA" />
-                  <Text style={{ fontFamily: 'Syne_600SemiBold', color: '#f8fafc', fontSize: 14 }}>
-                    {activeTrip.airline || ''} {activeTrip.flightNumber}
-                  </Text>
-                </View>
-              )}
-
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <Ionicons name="location" size={16} color="#A78BFA" />
-                <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 13 }}>
-                  Arriving at {activeTrip.to}
-                </Text>
-              </View>
-
-              {activeTrip.arrivalTime && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="time" size={16} color="#A78BFA" />
-                  <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 13 }}>
-                    {new Date(activeTrip.arrivalTime).toLocaleString([], {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                      hour12: true,
-                    })}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* Assignment Details */}
-            <View style={{ borderRadius: 18, backgroundColor: 'rgba(59,130,246,0.08)', padding: 20, borderWidth: 1, borderColor: 'rgba(59,130,246,0.15)' }}>
-              <Text style={{ fontFamily: 'Syne_600SemiBold', color: '#60A5FA', fontSize: 11, letterSpacing: 0.8, marginBottom: 12 }}>
-                PICKUP DETAILS
-              </Text>
-
-              {assignment ? (
-                <View style={{ gap: 10 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <Ionicons name="person" size={18} color="#60A5FA" />
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 14 }}>{assignment.driverName}</Text>
-                      <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 12 }}>{assignment.driverPhone}</Text>
-                    </View>
-                  </View>
-
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <Ionicons name="car" size={18} color="#60A5FA" />
-                    <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 13 }}>
-                      {assignment.vehicle} ({assignment.plateNumber})
-                    </Text>
-                  </View>
-
-                  {assignment.eta ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      <Ionicons name="time" size={18} color="#60A5FA" />
-                      <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 13 }}>
-                        ETA: {new Date(assignment.eta).toLocaleString([], { hour: 'numeric', minute: '2-digit', hour12: true })}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              ) : (
-                <View style={{ alignItems: 'center', gap: 8, paddingVertical: 12 }}>
-                  <Ionicons name="car" size={32} color="rgba(248,250,252,0.2)" />
-                  <Text style={{ fontFamily: 'Syne_500Medium', color: '#64748b', fontSize: 12, textAlign: 'center' }}>
-                    Assignment details will appear here once the operator assigns a driver.
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* Actions */}
-            {assignment ? (
-              <View style={{ flexDirection: 'row', gap: 10 }}>
+            {/* Request Ride Button (or form) */}
+            {!showForm ? (
+              <Pressable
+                onPress={() => setShowForm(true)}
+                style={{
+                  borderRadius: 24, backgroundColor: '#3B82F6', padding: 24, alignItems: 'center',
+                  shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
+                }}
+              >
+                <Ionicons name="car" size={32} color="#fff" />
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#fff', fontSize: 20, marginTop: 8 }}>
+                  Request a Ride
+                </SafeText>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 4, textAlign: 'center' }}>
+                  Tap to request a ride anywhere, anytime
+                </SafeText>
+              </Pressable>
+            ) : (
+              /* Ride Request Form */
+              <View style={{ borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.04)', padding: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
                 <Pressable
-                  onPress={handleCall}
-                  style={{ 
-                    flex: 1, 
-                    borderRadius: 14, 
-                    backgroundColor: assignment.driverPhone ? 'rgba(34,197,94,0.15)' : 'rgba(34,197,94,0.05)',
-                    paddingVertical: 14, 
-                    alignItems: 'center', 
-                    borderWidth: 1, 
-                    borderColor: assignment.driverPhone ? 'rgba(34,197,94,0.25)' : 'rgba(34,197,94,0.1)',
-                    opacity: assignment.driverPhone ? 1 : 0.5,
+                  onPress={() => setShowForm(false)}
+                  style={{ alignSelf: 'flex-end', marginBottom: 8 }}
+                >
+                  <Ionicons name="close" size={20} color="#94a3b8" />
+                </Pressable>
+
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#A78BFA', fontSize: 11, letterSpacing: 0.8, marginBottom: 14 }}>
+                  WHERE WOULD YOU LIKE TO GO?
+                </SafeText>
+
+                {/* Pickup */}
+                <View style={{ marginBottom: 14 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#A78BFA', fontSize: 10, letterSpacing: 0.8 }}>
+                      PICKUP LOCATION
+                    </SafeText>
+                    <Pressable onPress={handleUseCurrentLocation}>
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: useCurrentLocation ? '#22C55E' : '#60A5FA', fontSize: 10 }}>
+                        <Ionicons name="locate" size={12} color={useCurrentLocation ? '#22C55E' : '#60A5FA'} /> Use current
+                      </SafeText>
+                    </Pressable>
+                  </View>
+                  <TextInput
+                    style={{
+                      borderRadius: 16, padding: 16,
+                      backgroundColor: 'rgba(255,255,255,0.06)',
+                      borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+                      color: '#f8fafc', fontSize: 14,
+                      fontFamily: 'ShareTech_400Regular',
+                    }}
+                    placeholder="e.g. Kampala Serena Hotel"
+                    placeholderTextColor="#64748b"
+                    value={pickupLocation}
+                    onChangeText={setPickupLocation}
+                  />
+                </View>
+
+                {/* Destination */}
+                <View style={{ marginBottom: 14 }}>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#A78BFA', fontSize: 10, letterSpacing: 0.8, marginBottom: 6 }}>
+                    DESTINATION
+                  </SafeText>
+                  <TextInput
+                    style={{
+                      borderRadius: 16, padding: 16,
+                      backgroundColor: 'rgba(255,255,255,0.06)',
+                      borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+                      color: '#f8fafc', fontSize: 14,
+                      fontFamily: 'ShareTech_400Regular',
+                    }}
+                    placeholder="e.g. Uganda Museum, Kampala"
+                    placeholderTextColor="#64748b"
+                    value={destination}
+                    onChangeText={setDestination}
+                  />
+                </View>
+
+                {/* Notes */}
+                <View style={{ marginBottom: 14 }}>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#A78BFA', fontSize: 10, letterSpacing: 0.8, marginBottom: 6 }}>
+                    NOTES (OPTIONAL)
+                  </SafeText>
+                  <TextInput
+                    style={{
+                      borderRadius: 16, padding: 16,
+                      backgroundColor: 'rgba(255,255,255,0.06)',
+                      borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+                      color: '#f8fafc', fontSize: 14,
+                      fontFamily: 'ShareTech_400Regular',
+                      minHeight: 80, textAlignVertical: 'top',
+                    }}
+                    placeholder="e.g. I have 2 bags, please wait at reception"
+                    placeholderTextColor="#64748b"
+                    value={notes}
+                    onChangeText={setNotes}
+                    multiline
+                  />
+                </View>
+
+                {/* Submit */}
+                <Pressable
+                  onPress={handleRequestRide}
+                  disabled={submitting || !pickupLocation.trim() || !destination.trim()}
+                  style={{
+                    borderRadius: 20,
+                    backgroundColor: (submitting || !pickupLocation.trim() || !destination.trim()) ? 'rgba(59,130,246,0.2)' : '#3B82F6',
+                    padding: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8,
                   }}
                 >
-                  <Ionicons name="call" size={18} color={assignment.driverPhone ? "#22C55E" : "#22C55E80"} />
-                  <Text style={{ fontFamily: 'Syne_700Bold', color: assignment.driverPhone ? '#22C55E' : '#22C55E80', fontSize: 12, marginTop: 4 }}>Call Driver</Text>
-                </Pressable>
-                <Pressable
-                  onPress={handleWhatsApp}
-                  style={{ 
-                    flex: 1, 
-                    borderRadius: 14, 
-                    backgroundColor: assignment.driverPhone ? 'rgba(37,211,102,0.15)' : 'rgba(37,211,102,0.05)',
-                    paddingVertical: 14, 
-                    alignItems: 'center', 
-                    borderWidth: 1, 
-                    borderColor: assignment.driverPhone ? 'rgba(37,211,102,0.25)' : 'rgba(37,211,102,0.1)',
-                    opacity: assignment.driverPhone ? 1 : 0.5,
-                  }}
-                >
-                  <Ionicons name="logo-whatsapp" size={18} color={assignment.driverPhone ? "#25D366" : "#25D36680"} />
-                  <Text style={{ fontFamily: 'Syne_700Bold', color: assignment.driverPhone ? '#25D366' : '#25D36680', fontSize: 12, marginTop: 4 }}>WhatsApp</Text>
+                  {submitting ? (
+                    <ActivityIndicator size={18} color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="navigate" size={18} color="#fff" />
+                      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#fff', fontSize: 15 }}>
+                        Send Request
+                      </SafeText>
+                    </>
+                  )}
                 </Pressable>
               </View>
-            ) : null}
+            )}
+
+            {/* Recent / Pending Requests */}
+            {recentRequests.length > 0 && (
+              <View style={{ borderRadius: 18, backgroundColor: 'rgba(245,158,11,0.08)', padding: 16, borderWidth: 1, borderColor: 'rgba(245,158,11,0.15)' }}>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#F59E0B', fontSize: 11, letterSpacing: 0.8, marginBottom: 12 }}>
+                  YOUR RIDE REQUESTS
+                </SafeText>
+                {recentRequests.map((req, i) => {
+                  const badge = getStatusBadge(req.status);
+                  return (
+                    <Pressable
+                      key={req.id || i}
+                      onPress={() => {
+                        if (req.status === 'assigned' || req.status === 'in_progress') {
+                        // Navigate to tracking if ride is active
+                        router.push({
+                          pathname: '/last-mile/tracking' as any,
+                            params: { assignmentId: req.id, tripId: activeTripId },
+                          } as any);
+                        }
+                      }}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 10,
+                        paddingVertical: 12,
+                        borderBottomWidth: i < recentRequests.length - 1 ? 1 : 0,
+                        borderBottomColor: 'rgba(255,255,255,0.06)',
+                      }}
+                    >
+                      <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: badge.bg, alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name={badge.icon as any} size={16} color={badge.color} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#e2e8f0', fontSize: 12 }} numberOfLines={1}>
+                          {req.pickupLocation} → {req.destination}
+                        </SafeText>
+                        <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: badge.color, fontSize: 10, marginTop: 2, textTransform: 'capitalize' }}>
+                          {req.status.replace('_', ' ')}
+                        </SafeText>
+                      </View>
+                      {(req.status === 'assigned' || req.status === 'in_progress') && (
+                        <Ionicons name="chevron-forward" size={16} color="#64748b" />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
           </>
         )}
       </ScrollView>

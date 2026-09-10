@@ -1,0 +1,113 @@
+﻿
+frontend\src\modules\explore\hooks\useExplore.ts:30:  refresh: () => Promise<void>;
+frontend\src\modules\explore\hooks\useExplore.ts:31:  loadMoreFeed: () => Promise<void>;
+frontend\src\modules\explore\hooks\useExplore.ts:32:  loadMoreTrending: () => Promise<void>;
+frontend\src\modules\explore\hooks\useExplore.ts:33:  saveDestination: (destinationId: string) => 
+Promise<boolean>;
+frontend\src\modules\explore\hooks\useExplore.ts:34:  unsaveDestination: (destinationId: string) => 
+Promise<boolean>;
+frontend\src\modules\explore\hooks\useExplore.ts:39:const INITIAL_STATE: ExploreState = {
+frontend\src\modules\explore\hooks\useExplore.ts:40:  categories: [],
+frontend\src\modules\explore\hooks\useExplore.ts:41:  trending: [],
+frontend\src\modules\explore\hooks\useExplore.ts:42:  popular: [],
+frontend\src\modules\explore\hooks\useExplore.ts:43:  featured: [],
+frontend\src\modules\explore\hooks\useExplore.ts:44:  recommendations: [],
+frontend\src\modules\explore\hooks\useExplore.ts:45:  journeyFeed: [],
+frontend\src\modules\explore\hooks\useExplore.ts:46:  recentlyViewed: [],
+frontend\src\modules\explore\hooks\useExplore.ts:47:  nearby: [],
+frontend\src\modules\explore\hooks\useExplore.ts:48:  events: [],
+frontend\src\modules\explore\hooks\useExplore.ts:49:  weekendEscapes: [],
+frontend\src\modules\explore\hooks\useExplore.ts:50:  loading: true,
+frontend\src\modules\explore\hooks\useExplore.ts:51:  error: null,
+frontend\src\modules\explore\hooks\useExplore.ts:56:export function useExplore(userLocation?: { lat: 
+number; lng: number }): UseExploreReturn {
+frontend\src\modules\explore\hooks\useExplore.ts:62:  const user = useAuthStore((s: any) => s.user);
+frontend\src\modules\explore\hooks\useExplore.ts:71:    setState((prev) => ({ ...prev, loading: true, 
+error: null }));
+frontend\src\modules\explore\hooks\useExplore.ts:74:      console.log('[useExplore] Starting data load 
+with userLocation:', userLocation);
+frontend\src\modules\explore\hooks\useExplore.ts:78:        userId: userId || undefined,
+frontend\src\modules\explore\hooks\useExplore.ts:79:        location: userLocation,
+frontend\src\modules\explore\hooks\useExplore.ts:82:      console.log('[useExplore] Received homeData:', {
+frontend\src\modules\explore\hooks\useExplore.ts:83:        categories: homeData.categories.length,
+frontend\src\modules\explore\hooks\useExplore.ts:84:        sections: homeData.sections.length,
+frontend\src\modules\explore\hooks\useExplore.ts:85:        events: homeData.events.length,
+frontend\src\modules\explore\hooks\useExplore.ts:86:        nearby: homeData.nearby.length,
+frontend\src\modules\explore\hooks\useExplore.ts:87:        weekendEscapes: 
+homeData.weekendEscapes.length,
+frontend\src\modules\explore\hooks\useExplore.ts:88:        journeyFeed: homeData.journeyFeed.length,
+frontend\src\modules\explore\hooks\useExplore.ts:89:        providersUsed: homeData.providersUsed,
+frontend\src\modules\explore\hooks\useExplore.ts:94:        console.log(`[useExplore] Section ${idx}: 
+${section.type} - ${section.items.length} items - ${section.title}`);
+frontend\src\modules\explore\hooks\useExplore.ts:99:      console.log('[useExplore] DATA SUMMARY:');
+frontend\src\modules\explore\hooks\useExplore.ts:103:        console.log('[useExplore] Categories:', 
+homeData.categories.slice(0, 5).map(c => c.name));
+frontend\src\modules\explore\hooks\useExplore.ts:105:        console.log('[useExplore] Categories: 
+(empty)');
+frontend\src\modules\explore\hooks\useExplore.ts:110:        console.log('[useExplore] Trending:', 
+trendingItems.slice(0, 5).map((d: any) => d.name));
+frontend\src\modules\explore\hooks\useExplore.ts:112:        console.log('[useExplore] Trending: 
+(empty)');
+frontend\src\modules\explore\hooks\useExplore.ts:117:        console.log('[useExplore] Popular:', 
+popularItems.slice(0, 5).map((d: any) => d.name));
+frontend\src\modules\explore\hooks\useExplore.ts:119:        console.log('[useExplore] Popular: (empty)');
+frontend\src\modules\explore\hooks\useExplore.ts:123:        console.log('[useExplore] Events:', 
+homeData.events.slice(0, 5).map(e => e.title));
+frontend\src\modules\explore\hooks\useExplore.ts:125:        console.log('[useExplore] Events: (empty)');
+frontend\src\modules\explore\hooks\useExplore.ts:129:        console.log('[useExplore] Nearby:', 
+homeData.nearby.slice(0, 5).map(n => n.name));
+frontend\src\modules\explore\hooks\useExplore.ts:131:        console.log('[useExplore] Nearby: (empty)');
+frontend\src\modules\explore\hooks\useExplore.ts:135:        console.log('[useExplore] Weekend Escapes:', 
+homeData.weekendEscapes.slice(0, 5).map(e => e.destination?.name || e.id));
+frontend\src\modules\explore\hooks\useExplore.ts:137:        console.log('[useExplore] Weekend Escapes: 
+(empty)');
+frontend\src\modules\explore\hooks\useExplore.ts:141:        console.log('[useExplore] Journey Feed:', 
+homeData.journeyFeed.slice(0, 5).map(f => f.title));
+frontend\src\modules\explore\hooks\useExplore.ts:143:        console.log('[useExplore] Journey Feed: 
+(empty)');
+frontend\src\modules\explore\hooks\useExplore.ts:147:        console.log('[useExplore] Recommendations:', 
+homeData.recommendations.slice(0, 5).map(r => r.destination?.name));
+frontend\src\modules\explore\hooks\useExplore.ts:149:        console.log('[useExplore] Recommendations: 
+(empty)');
+frontend\src\modules\explore\hooks\useExplore.ts:153:        console.log('[useExplore] Recently Viewed:', 
+homeData.recentlyViewed.slice(0, 5).map(d => d.name));
+frontend\src\modules\explore\hooks\useExplore.ts:155:        console.log('[useExplore] Recently Viewed: 
+(empty)');
+frontend\src\modules\explore\hooks\useExplore.ts:158:      console.log('[useExplore] Providers used:', 
+homeData.providersUsed);
+frontend\src\modules\explore\hooks\useExplore.ts:164:        categories: homeData.categories,
+frontend\src\modules\explore\hooks\useExplore.ts:165:        trending: trendingItems,
+frontend\src\modules\explore\hooks\useExplore.ts:166:        popular: popularItems,
+frontend\src\modules\explore\hooks\useExplore.ts:167:        featured: homeData.sections.find(s => s.type 
+=== 'weekend')?.items || [],
+frontend\src\modules\explore\hooks\useExplore.ts:168:        recommendations: homeData.recommendations,
+frontend\src\modules\explore\hooks\useExplore.ts:169:        recentlyViewed: homeData.recentlyViewed,
+frontend\src\modules\explore\hooks\useExplore.ts:170:        journeyFeed: homeData.journeyFeed,
+frontend\src\modules\explore\hooks\useExplore.ts:171:        events: homeData.events,
+frontend\src\modules\explore\hooks\useExplore.ts:172:        nearby: homeData.nearby,
+frontend\src\modules\explore\hooks\useExplore.ts:173:        weekendEscapes: homeData.weekendEscapes,
+frontend\src\modules\explore\hooks\useExplore.ts:174:        loading: false,
+frontend\src\modules\explore\hooks\useExplore.ts:175:        error: null,
+frontend\src\modules\explore\hooks\useExplore.ts:182:      console.error('[useExplore] Error loading 
+data:', err);
+frontend\src\modules\explore\hooks\useExplore.ts:186:        loading: false,
+frontend\src\modules\explore\hooks\useExplore.ts:187:        error: err instanceof Error ? err.message : 
+'Failed to load explore data. Please check your connection and try again.',
+frontend\src\modules\explore\hooks\useExplore.ts:214:      const result = await 
+ExploreEngine.loadJourneyFeed({ cursor: feedCursor });
+frontend\src\modules\explore\hooks\useExplore.ts:216:        setState((prev) => ({ ...prev, journeyFeed: 
+[...prev.journeyFeed, ...result.data] }));
+frontend\src\modules\explore\hooks\useExplore.ts:220:      console.error('[useExplore] Error loading more 
+feed:', err);
+frontend\src\modules\explore\hooks\useExplore.ts:229:      const result = await 
+ExploreEngine.loadDestinations({ trending: true, cursor: trendingCursor });
+frontend\src\modules\explore\hooks\useExplore.ts:231:        setState((prev) => ({ ...prev, trending: 
+[...prev.trending, ...result.data] }));
+frontend\src\modules\explore\hooks\useExplore.ts:235:      console.error('[useExplore] Error loading more 
+trending:', err);
+frontend\src\modules\explore\hooks\useExplore.ts:241:  const saveDestination = useCallback(async 
+(destinationId: string): Promise<boolean> => {
+frontend\src\modules\explore\hooks\useExplore.ts:248:  const unsaveDestination = useCallback(async 
+(destinationId: string): Promise<boolean> => {
+
+

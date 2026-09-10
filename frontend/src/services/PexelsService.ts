@@ -92,6 +92,47 @@ function getApiKey(): string {
   return process.env.EXPO_PUBLIC_PEXELS_API_KEY ?? '';
 }
 
+/* ── Destination image lookup ─────────────────────────────────────────────── */
+
+const destImageCache = new Map<string, string | null>();
+
+/**
+ * Look up a single real photo for a named destination/POI via Pexels.
+ * Best-effort: returns null on any failure or when no key is configured.
+ * Used as an image fallback AFTER Wikimedia and BEFORE Google Places.
+ */
+export async function fetchDestinationImage(name: string): Promise<string | null> {
+  const key = getApiKey();
+  const query = (name || '').trim();
+  if (!key || query.length < 3) return null;
+
+  if (destImageCache.has(query.toLowerCase())) {
+    return destImageCache.get(query.toLowerCase()) || null;
+  }
+
+  try {
+    const params = new URLSearchParams({
+      query,
+      per_page: '1',
+      orientation: 'landscape',
+    });
+    const res = await fetch(`${PEXELS_BASE}?${params.toString()}`, {
+      headers: { Authorization: key },
+    });
+    if (!res.ok) {
+      destImageCache.set(query.toLowerCase(), null);
+      return null;
+    }
+    const data = (await res.json()) as PexelsSearchResponse;
+    const url = data?.photos?.[0]?.src?.landscape || data?.photos?.[0]?.src?.large || null;
+    destImageCache.set(query.toLowerCase(), url);
+    return url;
+  } catch {
+    destImageCache.set(query.toLowerCase(), null);
+    return null;
+  }
+}
+
 export function resolveCountry(trip: {
   destinationAirport?: { countryCode?: string };
   destinations?: Array<{ country?: string }>;
@@ -222,3 +263,144 @@ export const POPULAR_DESTINATIONS: PopularDestination[] = [
   { name: 'Nairobi', countryCode: 'KE', image: 'https://images.pexels.com/photos/3935702/pexels-photo-3935702.jpeg?auto=compress&cs=tinysrgb&w=600' },
 ];
 
+/**
+ * Fetches dynamic images for popular destinations from Pexels API.
+ * Returns updated destinations with fresh image URLs.
+ */
+export async function fetchPopularDestinations(): Promise<PopularDestination[]> {
+  const results = await Promise.allSettled(
+    POPULAR_DESTINATIONS.map(async (dest) => {
+      const images = await fetchCountryImages(dest.name, dest.countryCode);
+      return {
+        ...dest,
+        image: images.length > 0 ? images[0] : dest.image,
+      };
+    })
+  );
+  
+  return results.map((r, i) => 
+    r.status === 'fulfilled' ? r.value : POPULAR_DESTINATIONS[i]
+  );
+}
+
+/* ── Travel carousel for AddYourTripScreen ─────────────────────────────────── */
+
+/**
+ * Large pool of diverse travel destination queries from around the world.
+ * Each query targets a specific place to get actual location photos.
+ * On each call, a random subset is selected for dynamic variety.
+ */
+const TRAVEL_PLACE_POOL = [
+  'Paris France travel',
+  'Tokyo Japan cityscape',
+  'Bali Indonesia beach',
+  'Santorini Greece',
+  'Maldives island',
+  'New York City skyline',
+  'London England landmarks',
+  'Dubai UAE architecture',
+  'Rome Italy colosseum',
+  'Sydney Australia harbour',
+  'Cape Town South Africa',
+  'Nairobi Kenya safari',
+  'Barcelona Spain',
+  'Amsterdam Netherlands',
+  'Prague Czech Republic',
+  'Istanbul Turkey',
+  'Marrakech Morocco',
+  'Bangkok Thailand',
+  'Hanoi Vietnam',
+  'Seoul South Korea',
+  'Hong Kong skyline',
+  'Singapore city',
+  'Kuala Lumpur Malaysia',
+  'Mumbai India',
+  'Rio de Janeiro Brazil',
+  'Buenos Aires Argentina',
+  'Machu Picchu Peru',
+  'Cairo Egypt pyramids',
+  'Reykjavik Iceland',
+  'Oslo Norway fjord',
+  'Zurich Switzerland',
+  'Lisbon Portugal',
+  'Dubrovnik Croatia',
+  'Budapest Hungary',
+  'Vienna Austria',
+  'Edinburgh Scotland',
+  'Queenstown New Zealand',
+  'Fiji islands',
+  'Maui Hawaii',
+  'Banff Canada',
+  'Antelope Canyon USA',
+  'Santorini Greece',
+  'Positano Italy coast',
+  'Cinque Terre Italy',
+  'Provence France lavender',
+  'Safari Tanzania',
+  'Victoria Falls Zambia',
+  'Petra Jordan',
+  'Angkor Wat Cambodia',
+  'Taj Mahal India',
+  'Great Wall China',
+];
+
+export interface TravelImage {
+  url: string;
+  label: string;
+}
+
+/**
+ * Fetches up to 9 travel destination images from Pexels by randomly selecting
+ * from a large pool of diverse place queries. Each call returns a different
+ * set of images for dynamic variety. Only returns actual place photos —
+ * no maps, suitcases, or globes.
+ */
+export async function fetchTravelCarouselImages(): Promise<TravelImage[]> {
+  const results: TravelImage[] = [];
+  const seen = new Set<number>();
+
+  // Shuffle a copy of the pool for random selection each time
+  const shuffled = [...TRAVEL_PLACE_POOL].sort(() => Math.random() - 0.5);
+  // Pick up to 12 random queries (more than needed to allow for dedup)
+  const selectedQueries = shuffled.slice(0, 12);
+
+  for (const query of selectedQueries) {
+    if (results.length >= 9) break;
+    const photos = await searchPexels(query, 3);
+    for (const photo of photos) {
+      if (seen.has(photo.id)) continue;
+      seen.add(photo.id);
+      // Extract the place name from the query (everything before the first space)
+      const placeName = query.split(' ')[0];
+      results.push({
+        url: photo.src.large,
+        label: placeName,
+      });
+      if (results.length >= 9) break;
+    }
+  }
+
+  return results;
+}
+
+/* ── Country images with labels for DestinationCarousel ────────────────────── */
+
+export interface CountryImage {
+  url: string;
+  label: string;
+}
+
+/**
+ * Fetches country images and returns them with the country name as label.
+ * Used by DestinationCarousel to show the place name on each image.
+ */
+export async function fetchCountryImagesWithLabels(
+  country: string,
+  countryCode: string,
+): Promise<CountryImage[]> {
+  const urls = await fetchCountryImages(country, countryCode);
+  return urls.map((url) => ({
+    url,
+    label: country,
+  }));
+}

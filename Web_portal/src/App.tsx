@@ -7,10 +7,14 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import TravelerDetailPage from './pages/TravelerDetailPage';
+import TravelerManagementPage from './pages/TravelerManagementPage';
 import AssignPickupPage from './pages/AssignPickupPage';
 import DriversPage from './pages/DriversPage';
+import OperatorProfilePage from './pages/OperatorProfilePage';
 import DriverDetailPage from './pages/DriverDetailPage';
 import LiveOperationsPage from './pages/LiveOperationsPage';
+import LiveMapPage from './pages/LiveMapPage';
+import RideRequestsPage from './pages/RideRequestsPage';
 function AppContent() {
   const { checkAuth, initialized, user, operator } = useAuthStore();
   useEffect(() => { checkAuth(); }, []);
@@ -34,7 +38,11 @@ function AppContent() {
         <Route path="/assignments/new/:tripId" element={<ProtectedRoute><Layout><AssignPickupPage /></Layout></ProtectedRoute>} />
         <Route path="/drivers" element={<ProtectedRoute><Layout><DriversPage /></Layout></ProtectedRoute>} />
         <Route path="/drivers/:id" element={<ProtectedRoute><Layout><DriverDetailPage /></Layout></ProtectedRoute>} />
+        <Route path="/travelers" element={<ProtectedRoute><Layout><TravelerManagementPage /></Layout></ProtectedRoute>} />
+        <Route path="/live-map" element={<ProtectedRoute><Layout><LiveMapPage /></Layout></ProtectedRoute>} />
+        <Route path="/ride-requests" element={<ProtectedRoute><Layout><RideRequestsPage /></Layout></ProtectedRoute>} />
         <Route path="/live" element={<ProtectedRoute><Layout><LiveOperationsPage /></Layout></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Layout><OperatorProfilePage /></Layout></ProtectedRoute>} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

@@ -12,11 +12,13 @@ import {
   collection,
   doc,
   getDocs,
+  getDoc,
   limit,
   onSnapshot,
   query,
   serverTimestamp,
   updateDoc,
+  setDoc,
   where,
   type Unsubscribe,
   type DocumentSnapshot,
@@ -43,6 +45,11 @@ export interface AssignmentDoc {
   driverPhoto?: string;
   vehicleType?: string;
   vehiclePlate?: string;
+  vehicle?: string;
+  plateNumber?: string;
+  operatorName?: string;
+  operatorId?: string;
+  operatorPhone?: string;
 
   status: RideStatus;
 
@@ -156,16 +163,23 @@ export async function markNearDestination(assignmentId: string): Promise<void> {
   });
 }
 
-/** Complete the ride */
+/** Complete the ride and record it in the rides collection for history */
 export async function completeRide(
   assignmentId: string,
   finalLocation: { latitude: number; longitude: number },
   rideDurationSeconds: number,
   finalDistanceMeters: number,
+  rideStatus: 'completed' | 'cancelled' = 'completed',
 ): Promise<void> {
   const db = getFirebaseFirestore();
-  await updateDoc(doc(db, 'assignments', assignmentId), {
-    status: 'completed',
+  
+  // First get the current assignment data to copy to rides collection
+  const assignRef = doc(db, 'assignments', assignmentId);
+  const assignSnap = await getDoc(assignRef);
+  
+  // Update assignment status
+  await updateDoc(assignRef, {
+    status: rideStatus,
     completedAt: serverTimestamp(),
     currentLat: finalLocation.latitude,
     currentLng: finalLocation.longitude,
@@ -174,4 +188,32 @@ export async function completeRide(
     finalDistanceMeters,
     updatedAt: serverTimestamp(),
   });
+  
+  // Record in rides collection for history tracking
+  if (assignSnap.exists()) {
+    const data = assignSnap.data();
+    const rideRef = doc(collection(db, 'rides'));
+    await setDoc(rideRef, {
+      travelerId: data.travelerId || '',
+      operatorId: data.operatorId || '',
+      operatorName: data.operatorName || '',
+      tripId: data.tripId || '',
+      assignmentId: assignmentId,
+      driverId: data.driverId || '',
+      driverName: data.driverName || '',
+      driverPhone: data.driverPhone || '',
+      vehicle: data.vehicle || '',
+      plateNumber: data.plateNumber || '',
+      pickupLocation: data.pickupLocation || data.destination || '',
+      destination: data.destination || '',
+      destinationLat: data.destinationLat || null,
+      destinationLng: data.destinationLng || null,
+      distanceMeters: finalDistanceMeters || data.distanceRemaining || 0,
+      durationSeconds: rideDurationSeconds || 0,
+      status: rideStatus,
+      startedAt: data.rideStartedAt || null,
+      completedAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+    });
+  }
 }

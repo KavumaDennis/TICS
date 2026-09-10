@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAlertStore } from '@/src/store/alertStore';
 
-type Tab = { key: 'home' | 'trips' | 'assistant' | 'alerts' | 'profile'; label: string; href: string };
+type Tab = { key: 'home' | 'trips' | 'explore' | 'alerts' | 'profile'; label: string; href: string };
 
 export default function PersistentTabBar() {
   const router = useRouter();
@@ -16,7 +16,7 @@ export default function PersistentTabBar() {
   const tabs: Tab[] = [
     { key: 'home', label: 'Home', href: '/home' },
     { key: 'trips', label: 'Trips', href: '/(tabs)/trips' },
-    { key: 'assistant', label: 'Assistant', href: '/assistant' },
+    { key: 'explore', label: 'Explore', href: '/explore' },
     { key: 'alerts', label: 'Alerts', href: '/(tabs)/alerts' },
     { key: 'profile', label: 'Profile', href: '/profile' },
   ];
@@ -24,6 +24,7 @@ export default function PersistentTabBar() {
   function isActive(tab: Tab) {
     if (tab.href === '/home') return pathname === '/home' || pathname === '/dashboard';
     if (tab.href === '/(tabs)/trips') return pathname === '/trips' || pathname.startsWith('/trips/');
+    if (tab.href === '/explore') return pathname === '/explore' || pathname.startsWith('/explore/');
     if (tab.href === '/(tabs)/alerts') return pathname === '/alerts' || pathname.startsWith('/alerts/');
     return pathname === tab.href || pathname.startsWith(`${tab.href}/`);
   }
@@ -34,8 +35,8 @@ export default function PersistentTabBar() {
         return <Feather name="home" size={22} color={color} style={{ marginTop: -2 }} />;
       case 'trips':
         return <Fontisto name="plane" size={20} color={color} style={{ marginTop: -2 }} />;
-      case 'assistant':
-        return <MaterialCommunityIcons name="google-assistant" size={24} color={color} style={{ marginTop: -2 }} />;
+      case 'explore':
+        return <Ionicons name={focused ? 'compass' : 'compass-outline'} size={24} color={color} style={{ marginTop: -2 }} />;
       case 'alerts':
         return <Ionicons name={focused ? 'notifications' : 'notifications-outline'} size={22} color={color} style={{ marginTop: -2 }} />;
       case 'profile':
@@ -45,7 +46,8 @@ export default function PersistentTabBar() {
 
   return (
     <View 
-      className="p-2 mt-auto flex-row items-center justify-between rounded-full bg-tics-amber/25 border border-tics-amber/10 shadow-lg"
+      className="p-2 mt-auto flex-row items-center justify-between rounded-full bg-tics-amber/20 border-tics-amber/15"
+      
     >
       {tabs.map((t) => {
         const focused = isActive(t);

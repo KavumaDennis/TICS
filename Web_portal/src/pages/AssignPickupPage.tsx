@@ -12,7 +12,7 @@ import {
   Loader2,
   AlertCircle,
 } from 'lucide-react';
-import { doc, getDoc, addDoc, collection, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocs, addDoc, collection, onSnapshot, serverTimestamp, updateDoc, query, where } from 'firebase/firestore';
 import { getFirebaseFirestore } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 import type { TripDoc, DriverDoc } from '../types';
@@ -62,17 +62,21 @@ export default function AssignPickupPage() {
       setLoading(false);
     });
 
-    // Load drivers
-    const unsub = onSnapshot(collection(db, 'drivers'), (snap) => {
-      setDrivers(
-        snap.docs
-          .map(d => ({ ...d.data() as DriverDoc, id: d.id }))
-          .filter(d => d.active)
-      );
-    });
-
-    return () => unsub();
-  }, [tripId]);
+    // Load drivers - only this operator's drivers
+    if (operator?.uid) {
+      const q = query(collection(db, 'drivers'), where('operatorId', '==', operator.uid));
+      const unsub = onSnapshot(q, (snap) => {
+        setDrivers(
+          snap.docs
+            .map(d => ({ ...d.data() as DriverDoc, id: d.id }))
+            .filter(d => d.active)
+        );
+      });
+      return () => unsub();
+    } else {
+      setLoading(false);
+    }
+  }, [tripId, operator?.uid]);
 
   const onSubmit = async (data: AssignForm) => {
     if (!tripId || !operator || !selectedDriver) return;
@@ -117,6 +121,29 @@ export default function AssignPickupPage() {
       } catch (err: any) {
         console.error('Trip status update failed:', err);
         throw new Error(`Failed to update trip: ${err.message}`);
+      }
+
+      // Update the ride request status to "assigned" if there's a pending ride request
+      try {
+        const rideRequestsQuery = query(
+          collection(db, 'rideRequests'),
+          where('tripId', '==', tripId),
+          where('status', '==', 'pending')
+        );
+        const rideRequestsSnap = await getDocs(rideRequestsQuery);
+        const updatePromises = rideRequestsSnap.docs.map((rideReqDoc) =>
+          updateDoc(doc(db, 'rideRequests', rideReqDoc.id), {
+            status: 'assigned',
+            assignedDriverId: selectedDriver.id,
+            assignedAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          })
+        );
+        await Promise.all(updatePromises);
+        console.log(`Updated ${updatePromises.length} ride request(s) to assigned`);
+      } catch (err: any) {
+        console.warn('Failed to update ride request status:', err);
+        // Non-critical - don't throw
       }
 
       setSuccess(true);

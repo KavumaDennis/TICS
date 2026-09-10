@@ -3,6 +3,7 @@
  * Renders different content sections based on recommendation kind.
  * All content comes from the recommendation document — no hardcoded copy.
  */
+import { airlineName } from '@/src/utils/airlineDisplay';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -25,6 +26,7 @@ import { useFlightMonitoringStore } from '@/src/store/flightMonitoringStore';
 import { useSaveStore } from '@/src/store/saveStore';
 import { useAssistantStore } from '@/src/store/assistantStore';
 import { generateShareUpdate } from '@/src/firebase/callables';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 /* ── Kind config ────────────────────────────────────────────────────────────── */
 
@@ -51,9 +53,9 @@ function Section({ title, icon, color, children }: { title: string; icon: string
     <View className='rounded-4xl' style={{ borderWidth: 1, borderColor: `${color}15`, backgroundColor: `${color}15`, padding: 16 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <Ionicons name={icon as any} size={16} color={color} />
-        <Text style={{ fontFamily: 'Syne_600SemiBold', color, fontSize: 11, letterSpacing: 0.8 }}>
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular', color, fontSize: 11, letterSpacing: 0.8 }}>
           {title.toUpperCase()}
-        </Text>
+        </SafeText>
       </View>
       {children}
     </View>
@@ -63,8 +65,8 @@ function Section({ title, icon, color, children }: { title: string; icon: string
 function InfoLine({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' }}>
-      <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 12 }}>{label}</Text>
-      <Text style={{ fontFamily: 'Syne_600SemiBold', color: valueColor ?? '#f8fafc', fontSize: 13, maxWidth: '60%', textAlign: 'right' }}>{value}</Text>
+      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 12 }}>{label}</SafeText>
+      <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: valueColor ?? '#f8fafc', fontSize: 13, maxWidth: '60%', textAlign: 'right' }}>{value}</SafeText>
     </View>
   );
 }
@@ -102,12 +104,12 @@ export default function RecommendationDetailsScreen() {
         </Pressable>
         <View style={{ alignItems: 'center', paddingTop: 60 }}>
           <Ionicons name="cloud-offline-outline" size={48} color="rgba(148,163,184,0.3)" />
-          <Text style={{ fontFamily: 'Syne_600SemiBold', color: '#94a3b8', fontSize: 15, marginTop: 16 }}>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 15, marginTop: 16 }}>
             Recommendation not found
-          </Text>
-          <Text style={{ fontFamily: 'Syne_500Medium', color: '#475569', fontSize: 12, marginTop: 8, textAlign: 'center' }}>
+          </SafeText>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#475569', fontSize: 12, marginTop: 8, textAlign: 'center' }}>
             This recommendation may have expired or been updated. Return to the recommendations screen to see the latest insights.
-          </Text>
+          </SafeText>
         </View>
       </View>
     );
@@ -136,7 +138,8 @@ export default function RecommendationDetailsScreen() {
       const { shareText } = await generateShareUpdate(trip!.id);
       await Share.share({ message: shareText, title: trip!.title });
     } catch {
-      await Share.share({ message: `${rec!.title}\n${rec!.message}\n\nShared via TICS`, title: rec!.title }).catch(() => { });
+      const fallback = [`📍 ${rec?.title || 'Recommendation'}`, rec?.message || '', '', 'Powered by TICS'].filter(Boolean).join('\n');
+      await Share.share({ message: fallback, title: rec?.title ?? 'TICS' }).catch(() => { });
     } finally { setSharing(false); }
   }
 
@@ -164,12 +167,12 @@ export default function RecommendationDetailsScreen() {
           <Ionicons name={cfg.icon as any} size={21} color={cfg.color} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontFamily: 'Syne_700Bold', color: cfg.color, fontSize: 10, letterSpacing: 1 }}>{cfg.label.toUpperCase()}</Text>
-          <Text style={{ fontFamily: 'Syne_500Medium', color: '#64748b', fontSize: 11 }} numberOfLines={1}>{trip.title}</Text>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: cfg.color, fontSize: 10, letterSpacing: 1 }}>{cfg.label.toUpperCase()}</SafeText>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#64748b', fontSize: 11 }} numberOfLines={1}>{trip.title}</SafeText>
         </View>
         {urgencyCfg && (
           <View className='rounded-full' style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: `${urgencyCfg.color}30` }}>
-            <Text style={{ fontFamily: 'Syne_700Bold', color: urgencyCfg.color, fontSize: 10 }}>{urgencyCfg.label}</Text>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: urgencyCfg.color, fontSize: 10 }}>{urgencyCfg.label}</SafeText>
           </View>
         )}
       </View>
@@ -179,16 +182,16 @@ export default function RecommendationDetailsScreen() {
         {/* ── Hero card ── */}
         <View className='rounded-4xl' style={{ borderWidth: 1, borderColor: `${cfg.color}15`, backgroundColor: `${cfg.color}15`, padding: 20, overflow: 'hidden' }}>
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, backgroundColor: cfg.color }} />
-          <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 20, lineHeight: 28, marginTop: 4 }}>{rec.title}</Text>
-          <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 14, lineHeight: 22, marginTop: 10 }}>{rec.message}</Text>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 20, lineHeight: 28, marginTop: 4 }}>{rec.title}</SafeText>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 14, lineHeight: 22, marginTop: 10 }}>{rec.message}</SafeText>
           {rec.confidenceScore != null && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 }}>
               <View style={{ flex: 1, height: 5, borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
                 <View style={{ width: `${Math.round(rec.confidenceScore * 100)}%`, height: '100%', backgroundColor: cfg.color, borderRadius: 99 }} />
               </View>
-              <Text style={{ fontFamily: 'Syne_500Medium', color: 'rgba(148,163,184,0.6)', fontSize: 11 }}>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: 'rgba(148,163,184,0.6)', fontSize: 11 }}>
                 {Math.round(rec.confidenceScore * 100)}% confidence
-              </Text>
+              </SafeText>
             </View>
           )}
         </View>
@@ -201,27 +204,27 @@ export default function RecommendationDetailsScreen() {
               if (line.startsWith('•') || line.startsWith('✓') || line.startsWith('✈') || line.startsWith('🚗') || line.startsWith('🚕') || line.startsWith('🚌') || line.startsWith('🚆') || line.startsWith('💡')) {
                 return (
                   <View key={i} style={{ flexDirection: 'row', gap: 8, marginBottom: 6 }}>
-                    <Text style={{ fontFamily: 'Syne_500Medium', color: cfg.color, fontSize: 13, marginTop: 1 }}>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: cfg.color, fontSize: 13, marginTop: 1 }}>
                       {line.charAt(0)}
-                    </Text>
-                    <Text style={{ fontFamily: 'Syne_500Medium', color: '#cbd5e1', fontSize: 13, lineHeight: 20, flex: 1 }}>
+                    </SafeText>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#cbd5e1', fontSize: 13, lineHeight: 20, flex: 1 }}>
                       {line.slice(1).trim()}
-                    </Text>
+                    </SafeText>
                   </View>
                 );
               }
               // Section headers
               if (line.endsWith(':') || line.startsWith('Before') || line.startsWith('Benefits') || line.startsWith('What TICS') || line.startsWith('How:')) {
                 return (
-                  <Text key={i} style={{ fontFamily: 'Syne_600SemiBold', color: cfg.color, fontSize: 12, marginTop: i > 0 ? 12 : 0, marginBottom: 6 }}>
+                  <SafeText key={i} style={{ fontFamily: 'ShareTech_400Regular', color: cfg.color, fontSize: 12, marginTop: i > 0 ? 12 : 0, marginBottom: 6 }}>
                     {line}
-                  </Text>
+                  </SafeText>
                 );
               }
               return (
-                <Text key={i} style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 13, lineHeight: 20, marginBottom: 4 }}>
+                <SafeText key={i} style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 13, lineHeight: 20, marginBottom: 4 }}>
                   {line}
-                </Text>
+                </SafeText>
               );
             })}
           </Section>
@@ -230,7 +233,7 @@ export default function RecommendationDetailsScreen() {
         {/* ── Live flight context (for flight-related recs) ── */}
         {['action', 'alternative_flight', 'time_optimization'].includes(rec.kind) && flight && (
           <Section title="Current flight status" icon="airplane-outline" color="#3B82F6">
-            <InfoLine label="Flight" value={`${trip.flightNumber ?? '—'}${trip.airline ? ' · ' + trip.airline : ''}`} />
+            <InfoLine label="Flight" value={`${trip.flightNumber ?? '—'}${trip.airline ? ' · ' + airlineName(trip.airline) : ''}`} />
             <InfoLine
               label="Status"
               value={flight.status.charAt(0).toUpperCase() + flight.status.slice(1)}
@@ -267,10 +270,10 @@ export default function RecommendationDetailsScreen() {
             {weather.windKph != null && <InfoLine label="Wind" value={`${weather.windKph} km/h`} />}
             <View style={{ marginTop: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 11 }}>Disruption risk</Text>
-                <Text style={{ fontFamily: 'Syne_700Bold', color: weather.riskScore >= 7 ? '#EF4444' : weather.riskScore >= 4 ? '#F59E0B' : '#22C55E', fontSize: 11 }}>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 11 }}>Disruption risk</SafeText>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: weather.riskScore >= 7 ? '#EF4444' : weather.riskScore >= 4 ? '#F59E0B' : '#22C55E', fontSize: 11 }}>
                   {weather.riskScore}/10 · {weather.riskScore >= 7 ? 'Severe' : weather.riskScore >= 4 ? 'Moderate' : weather.riskScore >= 2 ? 'Mild' : 'Low'}
-                </Text>
+                </SafeText>
               </View>
               <View style={{ height: 5, borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
                 <View style={{ width: `${weather.riskScore * 10}%`, height: '100%', backgroundColor: weather.riskScore >= 7 ? '#EF4444' : weather.riskScore >= 4 ? '#F59E0B' : '#22C55E', borderRadius: 99 }} />
@@ -283,33 +286,33 @@ export default function RecommendationDetailsScreen() {
         {rec.options && rec.options.length > 0 && (
           <Section title="Option comparison" icon="git-compare-outline" color={cfg.color}>
             <View style={{ borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.04)', padding: 14, marginBottom: 10 }}>
-              <Text style={{ fontFamily: 'Syne_600SemiBold', color: '#64748b', fontSize: 10, marginBottom: 6 }}>CURRENT</Text>
-              <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 14 }}>
-                {trip.flightNumber ?? 'Your flight'}{trip.airline ? ` · ${trip.airline}` : ''}
-              </Text>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#64748b', fontSize: 10, marginBottom: 6 }}>CURRENT</SafeText>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 14 }}>
+                {trip.flightNumber ?? 'Your flight'}{trip.airline ? ` · ${airlineName(trip.airline)}` : ''}
+              </SafeText>
               {trip.departureTime && (
-                <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
                   Departs {new Date(trip.departureTime).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
-                </Text>
+                </SafeText>
               )}
             </View>
             {rec.options.map((opt, i) => (
               <View key={i} style={{ borderRadius: 12, borderWidth: 1, borderColor: `${cfg.color}40`, backgroundColor: `${cfg.color}0A`, padding: 14, marginBottom: i < rec.options!.length - 1 ? 8 : 0 }}>
-                <Text style={{ fontFamily: 'Syne_600SemiBold', color: cfg.color, fontSize: 10, marginBottom: 6 }}>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: cfg.color, fontSize: 10, marginBottom: 6 }}>
                   RECOMMENDED{rec.options!.length > 1 ? ` OPTION ${i + 1}` : ''}
-                </Text>
-                <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 14 }}>
+                </SafeText>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 14 }}>
                   {opt.flight ?? opt.label ?? 'Alternative'}
-                </Text>
+                </SafeText>
                 {(opt.departs || opt.arrives) && (
-                  <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
                     {opt.departs ? `Departs ${opt.departs}` : ''}{opt.arrives ? ` · Arrives ${opt.arrives}` : ''}
-                  </Text>
+                  </SafeText>
                 )}
                 {opt.price && (
-                  <Text style={{ fontFamily: 'Syne_700Bold', color: cfg.color, fontSize: 12, marginTop: 6 }}>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: cfg.color, fontSize: 12, marginTop: 6 }}>
                     {opt.price}
-                  </Text>
+                  </SafeText>
                 )}
               </View>
             ))}
@@ -317,14 +320,14 @@ export default function RecommendationDetailsScreen() {
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                 {rec.priceDifference && (
                   <View style={{ flex: 1, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.04)', padding: 12 }}>
-                    <Text style={{ fontFamily: 'Syne_500Medium', color: '#64748b', fontSize: 10, marginBottom: 4 }}>COST</Text>
-                    <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 13 }}>{rec.priceDifference}</Text>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#64748b', fontSize: 10, marginBottom: 4 }}>COST</SafeText>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 13 }}>{rec.priceDifference}</SafeText>
                   </View>
                 )}
                 {rec.timeDifference && (
                   <View style={{ flex: 1, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.04)', padding: 12 }}>
-                    <Text style={{ fontFamily: 'Syne_500Medium', color: '#64748b', fontSize: 10, marginBottom: 4 }}>TIME</Text>
-                    <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 13 }}>{rec.timeDifference}</Text>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#64748b', fontSize: 10, marginBottom: 4 }}>TIME</SafeText>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 13 }}>{rec.timeDifference}</SafeText>
                   </View>
                 )}
               </View>
@@ -335,9 +338,9 @@ export default function RecommendationDetailsScreen() {
         {/* ── Source metadata ── */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 2 }}>
           <Ionicons name="shield-checkmark-outline" size={13} color="rgba(100,116,139,0.6)" />
-          <Text style={{ fontFamily: 'Syne_500Medium', color: '#334155', fontSize: 11 }}>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#334155', fontSize: 11 }}>
             Generated from live AviationStack + OpenWeather data · {rec.category ?? rec.kind}
-          </Text>
+          </SafeText>
         </View>
 
         {/* ── Actions ── */}
@@ -351,7 +354,7 @@ export default function RecommendationDetailsScreen() {
                   prompt = `[Weather Advisory Analysis]\nI have a weather advisory for my trip to ${trip.to}.\nTitle: ${rec.title}\nMessage: ${rec.message}\n\nPlease explain:\n1. How this weather may affect my travel\n2. What precautions I should take\n3. Whether I should consider changing my plans\n4. Packing recommendations for these conditions`;
                   break;
                 case 'alternative_flight':
-                  prompt = `[Alternative Flight Analysis]\nI'm looking at alternative flight options for my trip ${trip.from} → ${trip.to}.\nCurrent flight: ${trip.flightNumber ?? 'N/A'} (${trip.airline ?? 'N/A'})\nRecommendation: ${rec.title}\n${rec.message}\n\nPlease analyze:\n1. Is this alternative a good choice?\n2. Cost and time tradeoffs\n3. Any risks with this alternative\n4. What I should consider before switching`;
+                  prompt = `[Alternative Flight Analysis]\nI'm looking at alternative flight options for my trip ${trip.from} → ${trip.to}.\nCurrent flight: ${trip.flightNumber ?? 'N/A'} (${airlineName(trip.airline) || 'N/A'})\nRecommendation: ${rec.title}\n${rec.message}\n\nPlease analyze:\n1. Is this alternative a good choice?\n2. Cost and time tradeoffs\n3. Any risks with this alternative\n4. What I should consider before switching`;
                   break;
                 case 'time_optimization':
                   prompt = `[Timing Optimization]\nI need help optimizing my travel timing for ${trip.title}.\n${rec.title}\n${rec.message}\n\nPlease advise:\n1. Best times to arrive at the airport\n2. How to use extra time efficiently\n3. What to prioritize before departure\n4. Tips for a smooth experience`;
@@ -373,9 +376,9 @@ export default function RecommendationDetailsScreen() {
           >
 
             <Ionicons name="sparkles-outline" size={18} color="#fff" />
-            <Text className='text-tics-text' style={{ fontFamily: 'Syne_700Bold', fontSize: 13 }}>
+            <SafeText className='text-tics-text' style={{ fontFamily: 'ShareTech_400Regular', fontSize: 13 }}>
               Ask AI for help with this
-            </Text>
+            </SafeText>
 
           </Pressable>
 
@@ -387,9 +390,9 @@ export default function RecommendationDetailsScreen() {
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}
             >
               {sharing ? <ActivityIndicator size={16} color="rgba(248,250,252,0.7)" /> : <Ionicons name="share-social-outline" size={18} color="rgba(248,250,252,0.7)" />}
-              <Text style={{ fontFamily: 'Syne_700Bold', color: 'rgba(248,250,252,0.75)', fontSize: 13 }}>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: 'rgba(248,250,252,0.75)', fontSize: 13 }}>
                 {sharing ? 'Generating trip update…' : 'Share trip update'}
-              </Text>
+              </SafeText>
             </Pressable>
 
             <Pressable
@@ -399,9 +402,9 @@ export default function RecommendationDetailsScreen() {
               style={{ borderWidth: 1, borderColor: alreadySaved ? 'rgba(34,197,94,0.2)' : 'rgba(150, 199, 179, 0.5)', backgroundColor: alreadySaved ? 'rgba(34,197,94,0.30)' : 'rgba(255,255,255,0.03)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}
             >
               {saving ? <ActivityIndicator size={16} color="rgba(148,163,184,0.6)" /> : <Ionicons name={alreadySaved ? 'bookmark' : 'bookmark-outline'} size={18} color={alreadySaved ? '#22C55E' : 'rgba(148,163,184,0.6)'} />}
-              {/* <Text style={{ fontFamily: 'Syne_500Medium', color: alreadySaved ? '#22C55E' : 'rgba(148,163,184,0.7)', fontSize: 13 }}>
+              {/* <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: alreadySaved ? '#22C55E' : 'rgba(148,163,184,0.7)', fontSize: 13 }}>
               {alreadySaved ? 'Saved' : saving ? 'Saving…' : 'Save for later'}
-            </Text> */}
+            </SafeText> */}
             </Pressable>
           </View>
 
@@ -411,7 +414,7 @@ export default function RecommendationDetailsScreen() {
             style={{ borderWidth: 1, borderColor: `${cfg.color}20`, backgroundColor: `${cfg.color}45`, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}
           >
             <Ionicons name="pulse-outline" size={18} color={cfg.color} />
-            <Text style={{ fontFamily: 'Syne_700Bold', color: cfg.color, fontSize: 13 }}>Open monitoring dashboard</Text>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: cfg.color, fontSize: 13 }}>Open monitoring dashboard</SafeText>
           </Pressable>
         </View>
       </ScrollView>

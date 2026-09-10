@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { Text } from 'react-native';
 
 import PremiumShell from '@/src/screens/premium/PremiumShell';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 export default function PremiumBenefitsScreen() {
   const router = useRouter();
@@ -13,9 +14,9 @@ export default function PremiumBenefitsScreen() {
       primaryLabel="See Plans"
       onPrimary={() => router.push('/premium/plans' as any)}
     >
-      <Text className="text-tics-muted text-[12px]">• Unlimited alerts</Text>
-      <Text className="text-tics-muted text-[12px]">• Priority support</Text>
-      <Text className="text-tics-muted text-[12px]">• Smart recommendations</Text>
+      <SafeText className="text-tics-muted text-[12px]">• Unlimited alerts</SafeText>
+      <SafeText className="text-tics-muted text-[12px]">• Priority support</SafeText>
+      <SafeText className="text-tics-muted text-[12px]">• Smart recommendations</SafeText>
     </PremiumShell>
   );
 }

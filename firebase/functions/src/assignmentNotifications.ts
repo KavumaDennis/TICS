@@ -28,6 +28,7 @@ interface AssignmentData {
   pickupLocation?: string;
   eta?: string;
   status?: string;
+  destination?: string;
 }
 
 /**
@@ -163,7 +164,7 @@ export const notifyAssignmentUpdated = onDocumentUpdated(
         return null;
       }
 
-      // Status-specific messages
+      // Status-specific messages for Last Mile ride tracking
       const statusMessages: Record<string, { title: string; body: string }> = {
         en_route: {
           title: 'Driver En Route',
@@ -177,13 +178,25 @@ export const notifyAssignmentUpdated = onDocumentUpdated(
           title: 'Pickup Complete',
           body: `You've been picked up by ${after.driverName}. Enjoy your ride!`,
         },
+        driver_arrived: {
+          title: 'Driver Has Arrived',
+          body: `${after.driverName} has arrived in a ${after.vehicle || 'vehicle'} (${after.plateNumber || 'N/A'}). Please proceed to pickup.`,
+        },
+        ride_started: {
+          title: 'Ride Started',
+          body: `Your ride to ${after.destination || 'your destination'} has started. Enjoy the journey!`,
+        },
+        near_destination: {
+          title: 'Near Destination',
+          body: `You are approaching ${after.destination || 'your destination'}. Please prepare to arrive.`,
+        },
         completed: {
-          title: 'Trip Completed',
-          body: 'Your pickup has been completed. Thank you for using TICS!',
+          title: 'Ride Completed',
+          body: `You have arrived at ${after.destination || 'your destination'}. Thank you for riding with us!`,
         },
         cancelled: {
-          title: 'Pickup Cancelled',
-          body: 'Your pickup assignment has been cancelled. Please contact support.',
+          title: 'Ride Cancelled',
+          body: 'Your ride has been cancelled. Please contact your operator for assistance.',
         },
       };
 

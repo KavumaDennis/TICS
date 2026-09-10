@@ -4,6 +4,7 @@ export interface OperatorUser {
   email: string;
   role: 'operator' | 'admin';
   lodgeName?: string;
+  country?: string;
   createdAt?: any;
 }
 
@@ -34,6 +35,7 @@ export interface DriverDoc {
   plateNumber: string;
   active: boolean;
   lodgeId?: string;
+  operatorId?: string;
   createdAt?: any;
 }
 
@@ -42,6 +44,7 @@ export interface AssignmentDoc {
   tripId: string;
   travelerId: string;
   travelerName?: string;
+  driverId?: string;
   driverName: string;
   driverPhone: string;
   vehicle: string;

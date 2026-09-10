@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 
 import Card from '@/src/components/Card';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 type Variant = 'critical' | 'warning' | 'info';
 
@@ -63,17 +64,17 @@ export default function AlertCard({
 
           <View className="ml-3 flex-1">
             <View className="flex-row items-center justify-between">
-              <Text className="text-tics-text text-[15px] font-extrabold tracking-wide">{title}</Text>
+              <SafeText className="text-tics-text text-[15px] font-extrabold tracking-wide">{title}</SafeText>
               {severityLabel ? (
                 <View className={['rounded-full border px-3 py-1', v.badgeBg].join(' ')}>
-                  <Text className="text-[11px] font-extrabold">{severityLabel}</Text>
+                  <SafeText className="text-[11px] font-extrabold">{severityLabel}</SafeText>
                 </View>
               ) : null}
             </View>
-            <Text className="mt-2 text-tics-muted text-[13px] leading-5">{message}</Text>
+            <SafeText className="mt-2 text-tics-muted text-[13px] leading-5">{message}</SafeText>
 
             <View className="mt-4 flex-row items-center justify-between">
-              <Text className="text-tics-muted text-[12px]">{timeLabel}</Text>
+              <SafeText className="text-tics-muted text-[12px]">{timeLabel}</SafeText>
               <Pressable
                 onPress={onPress}
                 className={[
@@ -85,7 +86,7 @@ export default function AlertCard({
                       : 'border-tics-blue/40 bg-tics-blue/15',
                 ].join(' ')}
               >
-                <Text className="text-tics-text text-[12px] font-bold">{ctaLabel}</Text>
+                <SafeText className="text-tics-text text-[12px] font-bold">{ctaLabel}</SafeText>
               </Pressable>
             </View>
           </View>

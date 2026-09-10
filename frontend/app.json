@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "TICS",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,8 +15,8 @@
     },
     "android": {
       "package": "com.kavumadennis.tics",
-      "usesCleartextTraffic": true,
       "config": {},
+      "versionCode": 9,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -45,17 +45,26 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true,
+            "compilerArgs": [
+              "-D_LIBCPP_ENABLE_CXX17_REMOVED_FEATURES"
+            ],
+            "extraProguardRules": "-keep class expo.modules.image.** { *; }\n-keep class com.facebook.fresco.** { *; }\n-dontwarn expo.modules.image.**\n-keep class com.facebook.imagepipeline.** { *; }\n-keep class com.facebook.drawee.** { *; }\n-keep class com.facebook.common.** { *; }"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "346b603d-0d61-4009-9123-b72a962f4829"
-      }
+      "router": {}
     }
   }
 }

@@ -10,6 +10,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScreenBackground from '@/src/components/ScreenBackground';
 import { saveDestinationAndStartRide } from '@/src/services/RideStatusService';
+import { useAuthStore } from '@/src/store/useAuthStore';
+import { createRideRequest } from '@/src/services/RideRequestService';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 
@@ -25,7 +28,14 @@ interface PlaceResult {
 export default function DestinationSelectScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>();
+  const { assignmentId, tripId, operatorId, operatorName } = useLocalSearchParams<{ 
+    assignmentId: string; 
+    tripId?: string;
+    operatorId?: string;
+    operatorName?: string;
+  }>();
+  const uid = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<PlaceResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -92,10 +102,6 @@ export default function DestinationSelectScreen() {
   };
 
   const resolvePlace = async (placeId: string, description: string) => {
-    if (!assignmentId) {
-      Alert.alert('Error', 'Missing assignment ID.');
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
@@ -107,15 +113,44 @@ export default function DestinationSelectScreen() {
         throw new Error('Could not find location coordinates');
       }
       const name = data.result?.formatted_address || description;
-      await saveDestinationAndStartRide(assignmentId, {
-        name,
-        latitude: loc.lat,
-        longitude: loc.lng,
-      });
-      router.replace({
-        pathname: '/last-mile/tracking' as any,
-        params: { assignmentId, step: 'tracking' },
-      } as any);
+      
+      if (assignmentId) {
+        // If we have an assignment, save the destination and navigate to tracking
+        await saveDestinationAndStartRide(assignmentId, {
+          name,
+          latitude: loc.lat,
+          longitude: loc.lng,
+        });
+        router.replace({
+          pathname: '/last-mile/tracking' as any,
+          params: { assignmentId, step: 'tracking' },
+        } as any);
+      } else if (uid && operatorId && tripId) {
+        // Create a ride request so the operator can assign a driver
+        setError(null);
+        const requestId = await createRideRequest(
+          uid,
+          operatorId,
+          tripId,
+          'Airport arrival',
+          undefined,
+          undefined,
+          name,
+          loc.lat,
+          loc.lng,
+          '',
+          user?.name || user?.email || undefined,
+        );
+        
+        // Navigate back to coordination screen - it will show the pending request status
+        // and listen for the assignment
+        router.replace({
+          pathname: `/last-mile/${tripId}` as any,
+        } as any);
+      } else {
+        // Fallback: navigate to coordination screen
+        router.back();
+      }
     } catch (e: any) {
       Alert.alert('Error', e?.message || 'Failed to save destination. Please try again.');
     } finally {
@@ -156,20 +191,20 @@ export default function DestinationSelectScreen() {
     <ScreenBackground variant="slate">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1, paddingTop: insets.top + 16, paddingHorizontal: 16 }}
+        style={{ flex: 1, paddingTop: insets.top + 2, paddingHorizontal: 8 }}
       >
         {/* Header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        <View className='bg-tics-amber/35 border border-tics-amber/20 p-2 rounded-full' style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
           <Pressable
             onPress={() => router.back()}
-            style={{ width: 42, height: 42 }}
+            style={{ width: 46, height: 46 }}
             className="items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20"
           >
             <Ionicons name="chevron-back" size={20} color="rgba(248,250,252,0.9)" />
           </Pressable>
-          <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 18 }}>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 18 }}>
             Choose Destination
-          </Text>
+          </SafeText>
         </View>
 
         <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
@@ -178,13 +213,10 @@ export default function DestinationSelectScreen() {
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              borderRadius: 16,
-              borderWidth: 1,
               borderColor: 'rgba(255,255,255,0.1)',
               backgroundColor: 'rgba(255,255,255,0.06)',
-              paddingHorizontal: 14,
-              height: 52,
             }}
+            className="rounded-full border px-4 py-3"
           >
             <Ionicons name="search" size={18} color="#64748b" style={{ marginRight: 10 }} />
             <TextInput
@@ -194,11 +226,12 @@ export default function DestinationSelectScreen() {
               placeholderTextColor="#64748b"
               style={{
                 flex: 1,
-                fontFamily: 'Syne_500Medium',
+                fontFamily: 'ShareTech_400Regular',
                 color: '#f8fafc',
                 fontSize: 14,
-                height: 52,
+                // height: 52,
               }}
+              // className="py-3"
               autoFocus
             />
             {searching && <ActivityIndicator size="small" color="#8B5CF6" />}
@@ -216,9 +249,9 @@ export default function DestinationSelectScreen() {
                 borderColor: 'rgba(245,158,11,0.2)',
               }}
             >
-              <Text style={{ fontFamily: 'Syne_500Medium', color: '#F59E0B', fontSize: 12, textAlign: 'center' }}>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#F59E0B', fontSize: 12, textAlign: 'center' }}>
                 {error}
-              </Text>
+              </SafeText>
             </View>
           )}
 
@@ -250,12 +283,12 @@ export default function DestinationSelectScreen() {
                 >
                   <Ionicons name="location-outline" size={18} color="#8B5CF6" />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: 'Syne_600SemiBold', color: '#f8fafc', fontSize: 14 }}>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 14 }}>
                       {s.structured_formatting.main_text}
-                    </Text>
-                    <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 12, marginTop: 2 }}>
+                    </SafeText>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 12, marginTop: 2 }}>
                       {s.structured_formatting.secondary_text}
-                    </Text>
+                    </SafeText>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.2)" />
                 </Pressable>
@@ -268,9 +301,9 @@ export default function DestinationSelectScreen() {
             onPress={() => setShowManual(!showManual)}
             style={{ marginTop: 16, alignItems: 'center', padding: 12 }}
           >
-            <Text style={{ fontFamily: 'Syne_500Medium', color: '#8B5CF6', fontSize: 13 }}>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#8B5CF6', fontSize: 13 }}>
               {showManual ? 'Hide manual entry' : 'Enter address manually'}
-            </Text>
+            </SafeText>
           </Pressable>
 
           {/* Manual address input */}
@@ -283,7 +316,7 @@ export default function DestinationSelectScreen() {
                 placeholderTextColor="#64748b"
                 multiline
                 style={{
-                  fontFamily: 'Syne_500Medium',
+                  fontFamily: 'ShareTech_400Regular',
                   color: '#f8fafc',
                   fontSize: 14,
                   borderRadius: 16,
@@ -310,9 +343,9 @@ export default function DestinationSelectScreen() {
                 {loading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={{ fontFamily: 'Syne_700Bold', color: '#fff', fontSize: 14 }}>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#fff', fontSize: 14 }}>
                     Set Destination
-                  </Text>
+                  </SafeText>
                 )}
               </Pressable>
             </View>
@@ -328,9 +361,9 @@ export default function DestinationSelectScreen() {
               }}
             >
               <ActivityIndicator size="small" color="#8B5CF6" />
-              <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 12 }}>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 12 }}>
                 Saving destination...
-              </Text>
+              </SafeText>
             </View>
           )}
         </ScrollView>

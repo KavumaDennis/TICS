@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSaveStore, type SavedItem } from '@/src/store/saveStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useAlertModal } from '@/src/components/AlertModal';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 const TYPE_META: Record<SavedItem['itemType'], { icon: string; color: string; label: string }> = {
   alert:          { icon: 'warning-outline',   color: '#EF4444', label: 'Alert'          },
@@ -38,9 +39,9 @@ export default function SavedItemsScreen() {
     return (
       <Pressable onPress={() => setFilter(id)}>
         <View style={{ borderRadius: 99, paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1, borderColor: active ? '#22C55E' : 'rgba(255,255,255,0.1)', backgroundColor: active ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.04)' }}>
-          <Text style={{ fontFamily: 'Syne_500Medium', fontSize: 12, color: active ? '#fff' : 'rgba(148,163,184,0.8)' }}>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', fontSize: 12, color: active ? '#fff' : 'rgba(148,163,184,0.8)' }}>
             {label}
-          </Text>
+          </SafeText>
         </View>
       </Pressable>
     );
@@ -54,10 +55,10 @@ export default function SavedItemsScreen() {
           <Ionicons name="chevron-back" size={20} color="rgba(248,250,252,0.9)" />
         </Pressable>
         <View className="flex-1">
-          <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-text text-[17px]">Saved Items</Text>
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px]">
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[17px]">Saved Items</SafeText>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px]">
             {items.length} item{items.length !== 1 ? 's' : ''} saved
-          </Text>
+          </SafeText>
         </View>
       </View>
 
@@ -92,9 +93,9 @@ export default function SavedItemsScreen() {
           }}
           className="bg-tics-red/20 border border-tics-red/30 rounded-xl px-4 py-3 mx-2 mb-3"
         >
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-red text-[13px] text-center">
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-red text-[13px] text-center">
             Clear all saved items
-          </Text>
+          </SafeText>
         </Pressable>
       )}
 
@@ -123,26 +124,26 @@ export default function SavedItemsScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <View className="flex-row items-center justify-between mb-1">
-                    <Text style={{ fontFamily: 'Syne_500Medium', color: meta.color, fontSize: 10, letterSpacing: 0.8 }}>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: meta.color, fontSize: 10, letterSpacing: 0.8 }}>
                       {meta.label.toUpperCase()}
-                    </Text>
-                    <Text style={{ fontFamily: 'Syne_500Medium', color: 'rgba(148,163,184,0.5)', fontSize: 10 }}>
+                    </SafeText>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: 'rgba(148,163,184,0.5)', fontSize: 10 }}>
                       {savedTime}
-                    </Text>
+                    </SafeText>
                   </View>
-                  <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 14, lineHeight: 20 }}>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 14, lineHeight: 20 }}>
                     {title}
-                  </Text>
+                  </SafeText>
                   {message ? (
-                    <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 12, lineHeight: 18, marginTop: 4 }} numberOfLines={2}>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 12, lineHeight: 18, marginTop: 4 }} numberOfLines={2}>
                       {message}
-                    </Text>
+                    </SafeText>
                   ) : null}
                   {item.tags?.length > 0 && (
                     <View className="flex-row flex-wrap gap-1 mt-3">
                       {item.tags.map((tag: string) => (
                         <View key={tag} style={{ borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.07)', paddingHorizontal: 8, paddingVertical: 3 }}>
-                          <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 10 }}>{tag}</Text>
+                          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 10 }}>{tag}</SafeText>
                         </View>
                       ))}
                     </View>
@@ -156,12 +157,12 @@ export default function SavedItemsScreen() {
         {!filtered.length && (
           <View style={{ alignItems: 'center', paddingVertical: 60 }}>
             <Ionicons name="bookmark-outline" size={48} color="rgba(248,250,252,0.1)" />
-            <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 16, marginTop: 16 }}>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 16, marginTop: 16 }}>
               Nothing saved yet
-            </Text>
-            <Text style={{ fontFamily: 'Syne_500Medium', color: '#64748b', fontSize: 13, marginTop: 8, textAlign: 'center', paddingHorizontal: 32, lineHeight: 20 }}>
+            </SafeText>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#64748b', fontSize: 13, marginTop: 8, textAlign: 'center', paddingHorizontal: 32, lineHeight: 20 }}>
               Tap the bookmark icon on any alert or recommendation to save it here.
-            </Text>
+            </SafeText>
           </View>
         )}
       </ScrollView>

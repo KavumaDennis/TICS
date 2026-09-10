@@ -1,51 +1,110 @@
 /**
- * ProfileScreen — shows user stats, settings menu, live ratings.
- * Rating system: users can submit 1–5 stars, stored in Firestore.
- * Global average is displayed from the aggregate document.
+ * ProfileScreen.tsx
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Travel Dashboard — displays user identity, explorer level, XP progress,
+ * travel statistics, and profile menu items.
+ *
+ * All statistics are computed dynamically by ProfileService.
+ * No hardcoded values. No direct calculations in this screen.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
-import type { ComponentProps } from 'react';
+import { type ComponentProps, useMemo, useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Image } from 'expo-image';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { getFirebaseFirestore } from '@/src/firebase/firebaseApp';
 
 import Card from '@/src/components/Card';
+import { SafeText } from '@/src/components/responsive/SafeText';
 import { useAuthStore } from '@/src/store/useAuthStore';
-import { ticsDisplayName } from '@/src/utils/displayName';
 import { useTripStore } from '@/src/store/tripStore';
 import { useUserDocStore } from '@/src/store/userDocStore';
-import { useRatingStore } from '@/src/store/ratingStore';
+import { useSaveStore } from '@/src/store/saveStore';
+import { ticsDisplayName } from '@/src/utils/displayName';
+import { ExplorerLevelService } from '@/src/services/profile/ExplorerLevelService';
+import { TravelStatsService, type TravelStats } from '@/src/services/profile/TravelStatsService';
 
-type Row = {
+/* ── Types ─────────────────────────────────────────────────────────────────── */
+
+type MenuItem = {
   icon: ComponentProps<typeof Ionicons>['name'];
   label: string;
   subtitle: string;
-  href: '/account/edit' | '/account/trips-preferences' | '/account/notifications' | '/account/support';
+  href: string;
 };
 
-function StarRow({ current, onRate }: { current: number | null; onRate: (stars: number) => void }) {
-  const [hover, setHover] = useState(0);
-  const display = hover || current || 0;
+type ExplorerInfo = ReturnType<typeof ExplorerLevelService.calculate>;
+
+/* ── XP Progress Bar ───────────────────────────────────────────────────────── */
+
+function XPProgressBar({ info }: { info: ExplorerInfo }) {
   return (
-    <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'center', marginVertical: 12 }}>
-      {[1, 2, 3, 4, 5].map((s) => (
-        <Pressable
-          key={s}
-          onPress={() => onRate(s)}
-          onPressIn={() => setHover(s)}
-          onPressOut={() => setHover(0)}
-          style={{ padding: 4 }}
-        >
-          <Ionicons
-            name={display >= s ? 'star' : 'star-outline'}
-            size={28}
-            color={display >= s ? '#F59E0B' : 'rgba(248,250,252,0.3)'}
-          />
-        </Pressable>
-      ))}
+    <View className="mt-3 w-full">
+      <View className="flex-row justify-between mb-1">
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[10px]">
+          {info.totalXP.toLocaleString()} XP
+        </SafeText>
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[10px]">
+          {info.xpForNextLevel.toLocaleString()} XP
+        </SafeText>
+      </View>
+      <View className="h-2 rounded-full bg-white/10 overflow-hidden">
+        <View style={{ width: `${info.progressPercent}%` }} className="h-full rounded-full bg-gradient-to-r from-tics-amber to-yellow-400" />
+      </View>
+      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[10px] text-center mt-1">
+        {info.progress.toLocaleString()} / {info.xpForNextLevel.toLocaleString()} XP to Level {info.level + 1}
+      </SafeText>
     </View>
   );
 }
+
+/* ── Level Badge ────────────────────────────────────────────────────────────── */
+
+function LevelBadge({ level, title }: { level: number; title: string }) {
+  return (
+    <View className="flex-row items-center gap-2 rounded-full bg-tics-blue/20 border border-tics-blue/10 px-3 py-1.5">
+      <Ionicons name="compass" size={14} color="#3B82F6" />
+      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[11px]">
+        Explorer Level {level}
+      </SafeText>
+      <View className="w-px h-3 bg-white/10" />
+      <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[10px]">
+        {title}
+      </SafeText>
+    </View>
+  );
+}
+
+/* ── Menu Row Component ────────────────────────────────────────────────────── */
+
+function MenuRow({ item, isLast }: { item: MenuItem; isLast: boolean }) {
+  const router = useRouter();
+  return (
+    <Pressable
+      onPress={() => router.push(item.href as any)}
+      className={`py-4 active:opacity-80 ${!isLast ? 'border-b border-white/10' : ''}`}
+    >
+      <View className="flex-row items-center">
+        <View className="h-11 w-11 items-center justify-center rounded-full bg-white/[0.07]">
+          <Ionicons name={item.icon} size={17} color="rgba(248,250,252,0.90)" />
+        </View>
+        <View style={{ marginLeft: 16 }} className="flex-1">
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[14px]">
+            {item.label}
+          </SafeText>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-0.5 text-[11px] text-tics-muted">
+            {item.subtitle}
+          </SafeText>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color="rgba(248,250,252,0.35)" />
+      </View>
+    </Pressable>
+  );
+}
+
+/* ── Main Screen ────────────────────────────────────────────────────────────── */
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -55,51 +114,68 @@ export default function ProfileScreen() {
   const loading = useAuthStore((s) => s.loading);
   const trips = useTripStore((s) => s.trips);
   const userDoc = useUserDocStore((s) => s.doc);
-  const { userStars, averageRating, totalRatings, submitting, submitRating } = useRatingStore();
-
   const displayName = ticsDisplayName(user);
-  const tripsCount = trips.length;
-  const flightsCount = trips.filter((t) => t.flightNumber || t.airline).length;
+  const profilePhotoURL = (userDoc as any)?.photoURL ?? null;
 
-  const [showRating, setShowRating] = useState(false);
-  const [feedback, setFeedback] = useState('');
+  // Compute explorer level from totalXP in userDoc
+  const totalXP = (userDoc as any)?.totalXP ?? 0;
+  const explorerInfo = useMemo(() => ExplorerLevelService.calculate(totalXP), [totalXP]);
+  const levelTitle = useMemo(() => ExplorerLevelService.getLevelTitle(explorerInfo.level), [explorerInfo.level]);
 
-  async function handleRate(stars: number) {
-    try {
-      await submitRating(stars, feedback || undefined);
-      Alert.alert('Thank you!', `You rated TICS ${stars} star${stars === 1 ? '' : 's'}.`);
-      setShowRating(false);
-    } catch { /* shown by store */ }
-  }
+  // Compute travel stats from trips
+  const travelStats: TravelStats = useMemo(
+    () => TravelStatsService.computeStatsFromTrips(trips),
+    [trips],
+  );
 
-  const rows: Row[] = [
-    { icon: 'person', label: 'Personal information', subtitle: 'Name, email · opens editor', href: '/account/edit' },
-    { icon: 'briefcase', label: 'Trips & preferences', subtitle: 'Trip count & travel defaults', href: '/account/trips-preferences' },
-    { icon: 'notifications', label: 'Notifications', subtitle: 'Push & digest preferences', href: '/account/notifications' },
-    { icon: 'help-circle', label: 'Support center', subtitle: 'Help articles & contact', href: '/account/support' },
+  // Fetch the real saved-places count from the savedPlaces collection.
+  const [savedPlacesCount, setSavedPlacesCount] = useState(0);
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const db = getFirebaseFirestore();
+        const q = query(collection(db, 'savedPlaces'), where('userId', '==', token));
+        const snap = await getDocs(q);
+        if (cancelled) return;
+        // Deduplicate by destinationId to match the Saved Places screen.
+        const unique = new Set(snap.docs.map((d) => d.data().destinationId).filter(Boolean));
+        setSavedPlacesCount(unique.size);
+      } catch (err) {
+        console.warn('[Profile] Error loading saved places count:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [token]);
+
+  const menuItems: MenuItem[] = [
+    { icon: 'compass', label: 'Travel Preferences', subtitle: 'Trip defaults & travel style', href: '/account/trips-preferences' },
+    { icon: 'help-circle', label: 'Support Center', subtitle: 'Help articles & contact', href: '/account/support' },
+    { icon: 'settings', label: 'Settings', subtitle: 'Notifications, privacy & account', href: '/account/notifications' },
   ];
 
+  /* ── Not signed in ── */
   if (!token) {
     return (
-      <View className="flex-1 px-2 pt-10">
-        <View className='p-2 flex-row items-center gap-3 bg-tics-amber/25 border border-tics-amber/10 rounded-full'>
-          <Pressable
-            onPress={() => router.back()}
-            style={{ width: 46, height: 46 }}
-            className="items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full">
+      <View className="flex-1 p-1">
+        <View className="p-2 flex-row items-center gap-3 bg-tics-amber/25 border border-tics-amber/10 rounded-full">
+          <Pressable onPress={() => router.back()} style={{ width: 46, height: 46 }} className="items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full">
             <Ionicons name="chevron-back" size={22} color="rgba(248,250,252,0.9)" />
           </Pressable>
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[17px]">Profile</Text>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[17px]">Travel Dashboard</SafeText>
         </View>
         <Card accent="blue" className="py-6">
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-amber ml-2 text-[20px]">Not signed in</Text>
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-2 ml-2 text-tics-muted text-[12px] leading-5">Sign in to sync trips, alerts, and preferences.</Text>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber ml-2 text-[20px]">Not signed in</SafeText>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-2 ml-2 text-tics-muted text-[12px] leading-5">
+            Sign in to see your travel dashboard, XP, and stats.
+          </SafeText>
           <View className="mt-5 flex-row gap-3">
             <Pressable onPress={() => router.push('/auth/login')} className="flex-1 bg-tics-amber/35 border border-tics-amber/20 rounded-full px-5 py-6">
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-center text-[14px] text-tics-text">Login</Text>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-center text-[14px] text-tics-text">Login</SafeText>
             </Pressable>
-            <Pressable onPress={() => router.push('/auth/register')} className="flex-1 rounded-full border border-[#96C7B3]/50 bg-white/[0.06] px-5 py-6">
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-center text-[13px] text-tics-text">Register</Text>
+            <Pressable onPress={() => router.push('/auth/register')} className="flex-1 rounded-full border border-tics-amber/50 bg-white/[0.06] px-5 py-6">
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-center text-[13px] text-tics-text">Register</SafeText>
             </Pressable>
           </View>
         </Card>
@@ -107,171 +183,80 @@ export default function ProfileScreen() {
     );
   }
 
+  /* ── Signed in ── */
   return (
-    <View className="flex-1 px-2 pt-10">
-      <View className='p-2 flex-row items-center gap-3 bg-tics-amber/25 border border-tics-amber/10 rounded-full'>
-        <Pressable
-          onPress={() => router.back()}
-          style={{ width: 46, height: 46 }}
-          className="items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full">
+    <View className="flex-1 p-1">
+      <View className="p-2 flex-row items-center gap-3 bg-tics-amber/25 border border-tics-amber/10 rounded-full">
+        <Pressable onPress={() => router.back()} style={{ width: 46, height: 46 }} className="items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full">
           <Ionicons name="chevron-back" size={22} color="rgba(248,250,252,0.9)" />
         </Pressable>
-        <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[17px]">Profile</Text>
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[17px]">Travel Dashboard</SafeText>
       </View>
 
-      <ScrollView className="mt-6" contentContainerStyle={{ paddingBottom: 12, gap: 16 }} showsVerticalScrollIndicator={false}>
-
-        {/* ── Avatar + name ── */}
+      <ScrollView className="mt-2 px-1" contentContainerStyle={{ paddingBottom: 24, gap: 14 }} showsVerticalScrollIndicator={false}>
+        {/* ── Profile Header Card ── */}
         <Pressable onPress={() => router.push('/account/edit')} className="active:opacity-90">
           <Card accent="purple" className="px-5 py-5">
             <View className="items-center">
-              <View className="h-16 w-16 items-center justify-center rounded-full bg-white/[0.07] mb-3">
-                <Ionicons name="person" size={22} color="rgba(248,250,252,0.90)" />
+              <View className="h-20 w-20 items-center justify-center rounded-full bg-white/[0.07] mb-3 overflow-hidden border-2 border-tics-amber/30">
+                {profilePhotoURL ? (
+                  <Image source={{ uri: profilePhotoURL }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                ) : (
+                  <Ionicons name="person" size={28} color="rgba(248,250,252,0.90)" />
+                )}
               </View>
-              <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-text text-[22px]">{displayName}</Text>
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-1 text-tics-muted text-[12px]">{user?.email ?? '—'}</Text>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[22px]">{displayName}</SafeText>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-0.5 text-tics-muted text-[11px]">{user?.email ?? '—'}</SafeText>
+              <View className="mt-3"><LevelBadge level={explorerInfo.level} title={levelTitle} /></View>
+              <XPProgressBar info={explorerInfo} />
               <View className="mt-3 rounded-full bg-tics-blue/20 px-3 py-1">
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-blue text-[11px]">Tap to edit profile</Text>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[10px]">Tap to edit profile</SafeText>
               </View>
             </View>
           </Card>
         </Pressable>
 
-        {/* ── Stats row ── */}
-        <View className="flex-row gap-3">
-          <View className="flex-1 items-center bg-tics-blue/20 rounded-3xl py-4">
-            <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-blue text-[32px]">{tripsCount}</Text>
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] mt-1">Trips</Text>
+        {/* ── Travel Statistics ── */}
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[14px] ml-1">Travel Statistics</SafeText>
+
+        <View className="flex-row gap-2.5">
+          <View className="flex-1 items-center bg-tics-amber/25 border border-tics-amber/10 rounded-3xl py-4 px-2">
+            <Ionicons name="airplane" size={20} color="#3B82F6" style={{ marginBottom: 4 }} />
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[28px]">{travelStats.upcomingTrips}</SafeText>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[10px] mt-1 text-center">Upcoming Trips</SafeText>
           </View>
-          <View className="flex-1 items-center bg-tics-blue/20 rounded-3xl py-4">
-            <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-blue text-[32px]">{flightsCount}</Text>
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] mt-1">Flights</Text>
+          <View className="flex-1 items-center bg-tics-amber/25 border border-tics-amber/10 rounded-3xl py-4 px-2">
+            <Ionicons name="checkmark-circle" size={20} color="#22C55E" style={{ marginBottom: 4 }} />
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[28px]">{travelStats.completedTrips}</SafeText>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[10px] mt-1 text-center">Completed Trips</SafeText>
           </View>
-          <Pressable
-            className="flex-1 items-center bg-tics-amber/15 rounded-3xl py-4 active:opacity-80"
-            onPress={() => setShowRating((v) => !v)}
-          >
-            <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-amber text-[32px]">
-              {userStars != null ? userStars.toFixed(0) : '—'}
-            </Text>
-            <View className="flex-row items-center gap-1 mt-1">
-              <Ionicons name="star" size={10} color="#F59E0B" />
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px]">My rating</Text>
+          <View className="flex-1 items-center bg-tics-amber/25 border border-tics-amber/10 rounded-3xl py-4 px-2">
+            <Ionicons name="globe" size={20} color="#8B5CF6" style={{ marginBottom: 4 }} />
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[28px]">{travelStats.countriesVisited}</SafeText>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[10px] mt-1 text-center">Countries Visited</SafeText>
+          </View>
+          <Pressable className="flex-1 active:opacity-70" onPress={() => router.push('/saved' as any)}>
+            <View className="items-center bg-tics-amber/25 border border-tics-amber/10 rounded-3xl py-4 px-2">
+              <Ionicons name="bookmark" size={20} color="#F59E0B" style={{ marginBottom: 4 }} />
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[28px]">{savedPlacesCount}</SafeText>
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[10px] mt-1 text-center">Saved Places</SafeText>
             </View>
           </Pressable>
         </View>
 
-        {/* ── Rating Modal ── */}
-        <Modal
-          transparent
-          visible={showRating}
-          animationType="fade"
-        >
-          <View className="flex-1 bg-black/60 items-center justify-center px-2">
-            <View className="w-full bg-tics-bg2 rounded-4xl p-6 border border-tics-amber/20">
-              <Text
-                style={{ fontFamily: 'Syne_700Bold' }}
-                className="text-tics-amber text-[18px] mb-2 text-center"
-              >
-                Rate TICS
-              </Text>
-
-              {averageRating != null && (
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] text-center mb-4">
-                  Global average: {averageRating.toFixed(1)} ★ ({totalRatings} ratings)
-                </Text>
-              )}
-
-              <StarRow current={userStars} onRate={handleRate} />
-
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] text-center mb-6">
-                {userStars != null ? `Your current rating: ${userStars} star${userStars === 1 ? '' : 's'}.` : 'Tap a star to rate.'}
-              </Text>
-
-              {submitting && (
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] text-center mb-4">Saving…</Text>
-              )}
-
-              <Pressable
-                onPress={() => setShowRating(false)}
-                className="bg-tics-red rounded-full py-6 border border-tics-red/20"
-              >
-                <Text
-                  style={{ fontFamily: 'Syne_500Medium' }}
-                  className="text-center text-black"
-                >
-                  Cancel
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </Modal>
-
-        {/* ── Global app rating ── */}
-        {averageRating != null && !showRating && (
-          <Pressable onPress={() => setShowRating(true)} className="active:opacity-80">
-            <View className="flex-row items-center gap-3 rounded-full border border-tics-amber/25 bg-tics-amber/10 px-4 py-3">
-              <Ionicons name="star" size={18} color="#F59E0B" />
-              <View className="flex-1">
-                <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-amber text-[13px]">
-                  TICS rated {averageRating.toFixed(1)} / 5
-                </Text>
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] mt-0.5">
-                  {totalRatings} review{totalRatings === 1 ? '' : 's'} · Tap to rate
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={14} color="rgba(248,250,252,0.4)" />
-            </View>
-          </Pressable>
-        )}
-
-        {/* ── Saved items quick link ── */}
-        <Pressable onPress={() => router.push('/saved' as any)} className="active:opacity-80">
-          <View className="flex-row items-center gap-3 rounded-full bg-tics-amber/35 border border-tics-amber/20 px-4 py-3">
-            <Ionicons name="bookmark-outline" size={18} color="#3B82F6" />
-            <View className="flex-1">
-              <Text style={{ fontFamily: 'Syne_600SemiBold' }} className="text-tics-text text-[14px]">Saved items</Text>
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px] mt-0.5">
-                Your saved alerts, recommendations & insights
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={14} color="rgba(248,250,252,0.3)" />
-          </View>
-        </Pressable>
-
-        {/* ── Settings rows ── */}
-        <View className="bg-tics-blue/20 py-3 px-5 rounded-4xl">
-          {rows.map((row, i) => (
-            <Pressable
-              key={row.href}
-              onPress={() => router.push(row.href as any)}
-              className={`py-4 active:opacity-80 ${i < rows.length - 1 ? 'border-b border-white/10' : ''}`}
-            >
-              <View className="flex-row items-center">
-                <View className="h-11 w-11 items-center justify-center rounded-full bg-white/[0.07]">
-                  <Ionicons name={row.icon} size={17} color="rgba(248,250,252,0.90)" />
-                </View>
-                <View style={{ marginLeft: 16 }} className="flex-1">
-                  <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[14px]">{row.label}</Text>
-                  <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-0.5 text-[11px] text-tics-muted">{row.subtitle}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="rgba(248,250,252,0.35)" />
-              </View>
-            </Pressable>
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-amber text-[14px] ml-1">Settings</SafeText>
+        <View className="bg-tics-amber/25 border border-tics-amber/10 py-3 px-5 rounded-4xl">
+          {menuItems.map((item, i) => (
+            <MenuRow key={item.href} item={item} isLast={i === menuItems.length - 1} />
           ))}
         </View>
 
         {/* ── Logout ── */}
-        <Pressable
-          disabled={loading}
-          onPress={logout}
-          className="flex-row justify-center items-center gap-2 bg-tics-red/15 border border-tics-red/20 p-6 rounded-full"
-          style={{ opacity: loading ? 0.6 : 1 }}
-        >
+        <Pressable disabled={loading} onPress={logout} className="flex-row justify-center items-center gap-2 bg-tics-red/30 border border-tics-red/10 p-6 rounded-full" style={{ opacity: loading ? 0.6 : 1 }}>
           <Ionicons name="log-out" size={18} color="#EF4444" />
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[14px] text-tics-red">
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-[14px] text-tics-red">
             {loading ? 'Signing out…' : 'Log out'}
-          </Text>
+          </SafeText>
         </Pressable>
       </ScrollView>
     </View>

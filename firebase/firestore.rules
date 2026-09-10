@@ -45,22 +45,25 @@ service cloud.firestore {
     /* ── Users ─────────────────────────────────────────────────────────── */
 
     match /users/{userId} {
-      allow read: if isOwner(userId) || isOperator();
+      allow read: if isOwner(userId) || isOperator() || (isSignedIn() && resource.data.role == 'operator');
 
       allow create: if isOwner(userId)
         && request.resource.data.keys().hasOnly([
           'email','name','phone','devicePushTokens','premium',
           'travel_behavior','averageRating','totalRatings',
-          'role','lodgeName',
+          'role','lodgeName','country',
           'createdAt','updatedAt'
         ])
         && request.resource.data.email is string;
 
       allow update: if isOwner(userId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'email','name','phone','devicePushTokens',
+          'email','name','phone','photoURL','devicePushTokens',
           'travel_behavior','averageRating','totalRatings',
-          'role','lodgeName',
+          'role','lodgeName','logoUrl','description',
+          'location','country','contactPhone','contactEmail',
+          'availableDrivers','website','languages',
+          'recentlyViewed',
           'updatedAt'
         ])
         && !('premium' in request.resource.data.diff(resource.data).affectedKeys());
@@ -78,6 +81,31 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow write: if false;
       }
+
+      match /recommendationCache/{cacheId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /destinationInteractions/{interactionId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /destinationScores/{scoreId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    /* ── Operators ──────────────────────────────────────────────────────── */
+
+    match /operators/{operatorId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.keys().hasOnly([
+        'averageRating', 'totalRatings', 'updatedAt'
+      ]);
+      allow update: if isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'averageRating', 'totalRatings', 'updatedAt'
+      ]) || (isSignedIn() && request.auth.uid == operatorId);
+      allow delete: if isOperator();
     }
 
     /* ── Trips ─────────────────────────────────────────────────────────── */
@@ -246,8 +274,30 @@ service cloud.firestore {
 
     match /drivers/{driverId} {
 
-      allow read: if isSignedIn();
+      allow read: if isSignedIn()
+        && (
+          // Admin can read all drivers
+          isOperator()
+          // Operator can only read their own drivers
+          || (isSignedIn()
+            && resource.data.operatorId == request.auth.uid)
+        );
 
+      allow create: if isOperator()
+        && request.resource.data.operatorId == request.auth.uid;
+
+      allow update: if isOperator()
+        && resource.data.operatorId == request.auth.uid
+        && request.resource.data.operatorId == request.auth.uid;
+
+      allow delete: if isOperator()
+        && resource.data.operatorId == request.auth.uid;
+    }
+
+    /* ── Destinations (metadata) ─────────────────────────────── */
+
+    match /destinations/{destinationId} {
+      allow read: if isSignedIn();
       allow write: if isOperator();
     }
 
@@ -295,6 +345,179 @@ service cloud.firestore {
 
         allow create, update, delete: if false;
       }
+    }
+
+    /* ── Traveler ↔ Operator Relationship ──────────────────────────── */
+
+    match /travelerOperators/{docId} {
+      allow read: if isSignedIn() && (
+        resource.data.travelerId == request.auth.uid
+        || isOperator()
+      );
+      allow create: if isSignedIn() && (
+        request.resource.data.travelerId == request.auth.uid
+        || isOperator()
+      );
+      allow update: if isSignedIn() && (
+        resource.data.travelerId == request.auth.uid
+        || isOperator()
+      );
+      allow delete: if false;
+    }
+
+    /* ── Ride Requests ─────────────────────────────────────────────── */
+
+    match /rideRequests/{docId} {
+      allow read: if isSignedIn() && (
+        resource.data.travelerId == request.auth.uid
+        || isOperator()
+      );
+      allow create: if isSignedIn() && (
+        request.resource.data.travelerId == request.auth.uid
+        || isOperator()
+      );
+      allow update: if isSignedIn() && (
+        resource.data.travelerId == request.auth.uid
+        || isOperator()
+      );
+      allow delete: if false;
+    }
+
+    /* ── Rides (completed ride records) ────────────────────────────── */
+
+    match /rides/{docId} {
+      allow read: if isSignedIn() && (
+        resource.data.travelerId == request.auth.uid
+        || isOperator()
+      );
+      allow create: if isOperator();
+      allow update: if isOperator();
+      allow delete: if false;
+    }
+
+    /* ── Traveler Locations (live GPS) ─────────────────────────────── */
+
+    match /travelerLocations/{travelerId} {
+      allow read: if isSignedIn() && (
+        travelerId == request.auth.uid
+        || isOperator()
+      );
+      allow create, update: if isSignedIn() && (
+        travelerId == request.auth.uid
+        || isOperator()
+      );
+      allow delete: if false;
+    }
+
+    /* ── Driver Locations (live GPS) ───────────────────────────────── */
+
+    match /driverLocations/{driverId} {
+      allow read: if isSignedIn() && (
+        isOperator()
+        || resource.data.driverId == request.auth.uid
+      );
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    /* ── Notifications ─────────────────────────────────────────────── */
+
+    match /notifications/{docId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow delete: if false;
+    }
+
+    /* ── Trip History (timeline) ───────────────────────────────────── */
+
+    match /tripHistory/{docId} {
+      allow read: if isSignedIn() && (
+        resource.data.travelerId == request.auth.uid
+        || isOperator()
+      );
+      allow create: if isOperator();
+      allow update: if isOperator();
+      allow delete: if false;
+    }
+
+    /* ── AI Assistant Conversations (new structure) ───────────────── */
+
+    match /users/{userId}/conversations/{conversationId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'summary', 'lastMessage', 'status', 'messageCount', 'updatedAt'
+        ]);
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isOwner(userId);
+        allow create: if false;  // Only through callable function
+        allow update, delete: if false;
+      }
+    }
+
+    /* ── AI Assistant Memory (new structure) ─────────────────────── */
+
+    match /users/{userId}/memory/{docId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.keys().hasAny(['preferences', 'importantFacts', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    /* ── Explore Module Collections ───────────────────────────────── */
+    
+    match /exploreCategories/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isOperator();
+    }
+    
+    match /destinations/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isOperator();
+      allow update: if isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['popularity']);
+    }
+    
+    match /events/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isOperator();
+    }
+    
+    match /journeyFeed/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isOperator();
+    }
+    
+    match /nearbyPlaces/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isOperator();
+    }
+    
+    match /exploreAnalytics/{docId} {
+      allow read: if isOperator();
+      allow write: if isSignedIn();
+    }
+    
+    match /searchHistory/{docId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+    
+    match /savedPlaces/{docId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+    
+    match /recommendations/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isOperator();
     }
 
     /* ── Catch All ────────────────────────────────────────────────── */

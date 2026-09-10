@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import PremiumShell from '@/src/screens/premium/PremiumShell';
 import Card from '@/src/components/Card';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 export default function ChoosePlanScreen() {
   const router = useRouter();
@@ -16,16 +17,16 @@ export default function ChoosePlanScreen() {
     >
       <View className="flex-row gap-3">
         <Card className="flex-1 px-4 py-4">
-          <Text className="text-tics-text text-[13px] font-extrabold">Monthly</Text>
-          <Text className="mt-2 text-tics-text text-[18px] font-black">$9.99</Text>
+          <SafeText className="text-tics-text text-[13px] font-extrabold">Monthly</SafeText>
+          <SafeText className="mt-2 text-tics-text text-[18px] font-black">$9.99</SafeText>
         </Card>
         <Card className="flex-1 px-4 py-4">
-          <Text className="text-tics-text text-[13px] font-extrabold">Annual</Text>
-          <Text className="mt-2 text-tics-text text-[18px] font-black">$99.99</Text>
+          <SafeText className="text-tics-text text-[13px] font-extrabold">Annual</SafeText>
+          <SafeText className="mt-2 text-tics-text text-[18px] font-black">$99.99</SafeText>
         </Card>
       </View>
       <Pressable onPress={() => router.push('/premium/payment' as any)} className="rounded-2xl bg-tics-green px-5 py-4">
-        <Text className="text-center text-[13px] font-extrabold text-[#07131F]">Pay $9.99</Text>
+        <SafeText className="text-center text-[13px] font-extrabold text-[#07131F]">Pay $9.99</SafeText>
       </Pressable>
     </PremiumShell>
   );

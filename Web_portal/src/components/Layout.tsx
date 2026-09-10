@@ -8,14 +8,18 @@ import {
   Menu,
   X,
   Shield,
+  UserCog,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/live', label: 'Live Operations', icon: Radio },
+  { path: '/travelers', label: 'Travelers', icon: Users },
+  { path: '/live-map', label: 'Live Map', icon: Radio },
+  { path: '/live', label: 'Operations', icon: Radio },
   { path: '/drivers', label: 'Drivers', icon: Car },
+  { path: '/profile', label: 'My Profile', icon: UserCog },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

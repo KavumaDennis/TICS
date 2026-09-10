@@ -1,12 +1,13 @@
 import { View, Text, StyleSheet } from 'react-native';
 
 import { colors } from '@/src/constants/theme';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 export default function AlertBanner({ message }: { message: string }) {
   return (
     <View style={styles.root}>
-      <Text style={styles.title}>Alert</Text>
-      <Text style={styles.message}>{message}</Text>
+      <SafeText style={styles.title}>Alert</SafeText>
+      <SafeText style={styles.message}>{message}</SafeText>
     </View>
   );
 }

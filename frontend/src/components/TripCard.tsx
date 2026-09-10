@@ -5,6 +5,7 @@ import Octicons from '@expo/vector-icons/Octicons';
 import type { Trip } from '@/src/store/tripStore';
 import Card from '@/src/components/Card';
 import { useTripStatus } from '@/src/hooks/useTripStatus';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 export default function TripCard({ trip, onPress }: { trip: Trip; onPress: () => void }) {
   const { statusInfo, label, isCompleted, isCancelled } = useTripStatus(trip);
@@ -24,36 +25,36 @@ export default function TripCard({ trip, onPress }: { trip: Trip; onPress: () =>
           </View>
           <View>
             <View className="flex-row items-center">
-              <Text
+              <SafeText
                 numberOfLines={2}
                 ellipsizeMode="tail"
-                style={{ fontFamily: 'Syne_700Bold' }}
-                className={`text-[16px] flex-shrink ${isCompletedOrCancelled ? 'text-tics-muted' : 'text-tics-text'}`}>{trip.title}</Text>
+                style={{ fontFamily: 'ShareTech_400Regular' }}
+                className={`text-[16px] flex-shrink ${isCompletedOrCancelled ? 'text-tics-muted' : 'text-tics-text'}`}>{trip.title}</SafeText>
             </View>
             <View className='flex-row items-center gap-1 mt-1'>
-              <Text style={{
-                fontFamily: 'Syne_500Medium',
+              <SafeText style={{
+                fontFamily: 'ShareTech_400Regular',
               }} className="text-tics-muted text-[12px] mx-1">
                 {new Date(trip.departureTime).toLocaleString([], { dateStyle: 'medium' })}
-              </Text>
+              </SafeText>
               <Octicons name="dash" size={15} color="white" />
-              <Text style={{
-                fontFamily: 'Syne_500Medium',
+              <SafeText style={{
+                fontFamily: 'ShareTech_400Regular',
               }} className="text-tics-muted text-[12px]">
                 {new Date(trip.arrivalTime).toLocaleString([], { dateStyle: 'medium' })}
-              </Text>
+              </SafeText>
             </View>
-            <Text
+            <SafeText
               style={{
-                fontFamily: 'Syne_700Bold',
+                fontFamily: 'ShareTech_400Regular',
               }} className={`mt-2 text-[12px] ${isCompletedOrCancelled ? 'text-tics-muted/60' : 'text-tics-muted'}`}
             >
               {trip.flightNumber}
-            </Text>
+            </SafeText>
           </View>
         </View>
         <View style={{ backgroundColor: statusInfo.bgColor }} className="p-1 px-2 rounded-full border border-tics-amber/10">
-          <Text style={{ fontFamily: 'Syne_700Bold', color: statusInfo.color, fontSize: 11 }}>{statusInfo.label}</Text>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: statusInfo.color, fontSize: 11 }}>{statusInfo.label}</SafeText>
         </View>
       </Card>
     </Pressable>

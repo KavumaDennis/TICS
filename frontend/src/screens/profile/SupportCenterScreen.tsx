@@ -3,29 +3,30 @@ import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import ScreenBackground from '@/src/components/ScreenBackground';
 import Card from '@/src/components/Card';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 export default function SupportCenterScreen() {
   const router = useRouter();
 
   return (
 
-    <View className="flex-1 px-2 pt-5">
-      <View className="flex-row items-center bg-tics-amber/25 border border-tics-amber/10 rounded-full p-2 gap-2 mt-5">
+    <View className="flex-1 p-1">
+      <View className="flex-row items-center bg-tics-amber/25 border border-tics-amber/10 rounded-full p-2 gap-2">
         <Pressable
           onPress={() => router.back()}
           style={{ height: 46, width: 46 }}
           className="items-center justify-center bg-tics-amber/35 border border-tics-amber/20 rounded-full">
           <Ionicons name="chevron-back" size={22} color="#f8fafc" />
         </Pressable>
-        <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[17px] text-white">Support center</Text>
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-[17px] text-white">Support center</SafeText>
       </View>
 
       <ScrollView className="mt-5" contentContainerClassName="gap-4 pb-10">
         <Card accent="blue" className="pt-3">
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[18px] text-white">Help & docs</Text>
-          <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-2 text-[13px] leading-5 text-slate-400">
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-[18px] text-white">Help & docs</SafeText>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-2 text-[13px] leading-5 text-slate-400">
             Browse FAQs, escalation paths, and incident reporting.
-          </Text>
+          </SafeText>
         </Card>
 
         {[
@@ -40,15 +41,15 @@ export default function SupportCenterScreen() {
               else if (row.action === 'privacy') router.push('/account/privacy' as any);
               else Linking.openURL('mailto:support@tics.app');
             }}
-            className="rounded-full bg-tics-blue/30 px-5 py-5 active:opacity-90"
+            className="rounded-full bg-tics-amber/35 border border-tics-amber/20 p-3 active:opacity-90"
           >
             <View className="flex-row items-center">
-              <View className="h-11 w-11 items-center justify-center rounded-full bg-tics-blue/20 border border-tics-blue/10">
-                <Ionicons name={row.icon} size={20} color="#93c5fd" />
+              <View style={{ width: 46, height: 46 }} className="items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20">
+                <Ionicons name={row.icon} size={20} color="#96C7B3" />
               </View>
               <View className="ml-3 flex-1">
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-[14px] text-white">{row.title}</Text>
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-1 text-[12px] text-slate-500">{row.detail}</Text>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-[14px] text-white">{row.title}</SafeText>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-1 text-[12px] text-slate-500">{row.detail}</SafeText>
               </View>
               <Ionicons name="open-outline" size={18} color="rgba(248,250,252,0.45)" />
             </View>

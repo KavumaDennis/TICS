@@ -1,34 +1,51 @@
-import type { ConfigContext, ExpoConfig } from 'expo/config';
+import { ExpoConfig, ConfigContext } from "expo/config";
 
-export default ({ config }: ConfigContext): ExpoConfig => {
-  const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || undefined;
+export default ({ config }: ConfigContext): ExpoConfig => ({
+  ...config,
+  name: "TICS",
+  slug: "TICS",
+  version: "1.0.0",
 
-  return {
-    ...config,
+  android: {
+    package: "com.kavumadennis.tics",
+    googleServicesFile: "./google-services.json",
+  },
 
-    ios: {
-      ...config.ios,
-      bundleIdentifier: config.ios?.bundleIdentifier ?? "com.anonymous.frontend",
-      config: {
-        ...config.ios?.config,
-        ...(googleMapsApiKey ? { googleMapsApiKey } : {}),
+  plugins: [
+    "expo-router",
+    "expo-notifications",
+    [
+      "expo-splash-screen",
+      {
+        image: "./assets/images/splash-icon.png",
+        imageWidth: 200,
+        resizeMode: "contain",
+        backgroundColor: "#ffffff",
+        dark: {
+          backgroundColor: "#000000",
+        },
       },
-    },
-
-    android: {
-      ...config.android,
-      package: config.android?.package ?? "com.anonymous.frontend",
-      config: {
-        ...config.android?.config,
-        ...(googleMapsApiKey
-          ? {
-              googleMaps: {
-                ...config.android?.config?.googleMaps,
-                apiKey: googleMapsApiKey,
-              },
-            }
-          : {}),
+    ],
+    "expo-font",
+    [
+      "expo-build-properties",
+      {
+        android: {
+          usesCleartextTraffic: true,
+          compilerArgs: [
+            "-D_LIBCPP_ENABLE_CXX17_REMOVED_FEATURES",
+          ],
+          extraProguardRules: "-keep class expo.modules.image.** { *; }\n-keep class com.facebook.fresco.** { *; }\n-dontwarn expo.modules.image.**\n-keep class com.facebook.imagepipeline.** { *; }\n-keep class com.facebook.drawee.** { *; }\n-keep class com.facebook.common.** { *; }",
+        },
       },
+    ],
+    "@react-native-google-signin/google-signin",
+  ],
+
+  extra: {
+    router: {},
+    eas: {
+      projectId: "a1d93211-154a-47bc-ad0f-0c31d7ac0b60"
     },
-  };
-};
+  },
+});

@@ -3,3 +3,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Set ShareTech as the default font for the entire app */
+@layer base {
+  * {
+    font-family: 'ShareTech_400Regular', sans-serif;
+  }
+  
+  body {
+    font-family: 'ShareTech_400Regular', sans-serif;
+  }
+}
+

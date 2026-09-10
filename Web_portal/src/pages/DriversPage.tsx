@@ -10,8 +10,9 @@ import {
   Loader2,
   Trash2,
 } from 'lucide-react';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { getFirebaseFirestore } from '../lib/firebase';
+import { useAuthStore } from '../store/authStore';
 import type { DriverDoc } from '../types';
 
 export default function DriversPage() {
@@ -24,15 +25,18 @@ export default function DriversPage() {
   const [plateNumber, setPlateNumber] = useState('');
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
+  const { operator } = useAuthStore();
 
   useEffect(() => {
+    if (!operator?.uid) return;
     const db = getFirebaseFirestore();
-    const unsub = onSnapshot(collection(db, 'drivers'), (snap) => {
+    const q = query(collection(db, 'drivers'), where('operatorId', '==', operator.uid));
+    const unsub = onSnapshot(q, (snap) => {
       setDrivers(snap.docs.map(d => ({ ...d.data() as DriverDoc, id: d.id })));
       setLoading(false);
     });
     return () => unsub();
-  }, []);
+  }, [operator?.uid]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +50,7 @@ export default function DriversPage() {
         vehicle,
         plateNumber,
         active: true,
+        operatorId: operator?.uid || '',
         createdAt: serverTimestamp(),
       });
       setName('');

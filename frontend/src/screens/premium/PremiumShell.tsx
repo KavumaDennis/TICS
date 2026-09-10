@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import ScreenBackground from '@/src/components/ScreenBackground';
 import Card from '@/src/components/Card';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 type Props = PropsWithChildren<{
   title: string;
@@ -27,18 +28,18 @@ export default function PremiumShell({ title, subtitle, primaryLabel, onPrimary,
           ) : (
             <View className="h-10 w-10" />
           )}
-          <Text className="text-tics-text text-[16px] font-extrabold">Premium</Text>
+          <SafeText className="text-tics-text text-[16px] font-extrabold">Premium</SafeText>
           <View className="h-10 w-10" />
         </View>
 
         <Card className="mt-8 px-6 py-8">
-          <Text className="text-tics-text text-[22px] font-extrabold">{title}</Text>
-          <Text className="mt-3 text-tics-muted text-[13px] leading-5">{subtitle}</Text>
+          <SafeText className="text-tics-text text-[22px] font-extrabold">{title}</SafeText>
+          <SafeText className="mt-3 text-tics-muted text-[13px] leading-5">{subtitle}</SafeText>
           {children ? <View className="mt-6 gap-3">{children}</View> : null}
         </Card>
 
         <Pressable onPress={onPrimary} className="mt-auto rounded-2xl bg-tics-purple px-6 py-4">
-          <Text className="text-center text-[14px] font-extrabold text-tics-text">{primaryLabel}</Text>
+          <SafeText className="text-center text-[14px] font-extrabold text-tics-text">{primaryLabel}</SafeText>
         </Pressable>
       </View>
     </ScreenBackground>

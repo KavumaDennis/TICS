@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import {
   collection,
-  doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
   type Unsubscribe,
+  Timestamp,
 } from 'firebase/firestore';
 
 import {
@@ -37,9 +38,14 @@ type AssistantState = {
   pendingInitialMessage: string | null;
   /** Pre-set trip ID to use when navigating to assistant */
   pendingTripId: string | null;
+  /** Whether we're in a "thinking" state */
+  thinking: boolean;
+  /** Timestamp when conversation was last cleared — used to filter old messages */
+  clearedAt: number | null;
 
   startConversation: (uid: string, tripId: string | null) => void;
   stopConversation: () => void;
+  resetConversation: (uid: string) => Promise<void>;
   sendMessage: (input: {
     uid: string;
     tripId: string | null;
@@ -62,8 +68,52 @@ let activeConversationId: string | null = null;
    HELPERS
 ========================= */
 
-function buildConversationId(uid: string, tripId: string | null) {
+/**
+ * Build conversation ID compatible with the currently deployed backend.
+ * The backend uses: `${uid}_${tripId}` or `${uid}_general`
+ */
+function buildConversationId(uid: string, tripId: string | null): string {
   return tripId ? `${uid}_${tripId}` : `${uid}_general`;
+}
+
+/**
+ * Convert common API error messages to user-friendly text.
+ */
+function friendlyError(raw: string): string {
+  if (!raw) return 'Something went wrong. Please try again.';
+
+  const lower = raw.toLowerCase();
+
+  if (lower.includes('quota') || lower.includes('rate limit') || lower.includes('resource exhausted') || lower.includes('429')) {
+    return 'The AI assistant is temporarily unavailable due to high demand. Please wait a moment and try again.';
+  }
+
+  if (lower.includes('deadline exceeded') || lower.includes('timeout') || lower.includes('timed out')) {
+    return 'The AI is taking too long to respond. Please check your connection and try again.';
+  }
+
+  if (lower.includes('permission') || lower.includes('unauthorized') || lower.includes('forbidden') || lower.includes('401') || lower.includes('403')) {
+    return 'You don\'t have permission to use the assistant. Please sign out and sign in again.';
+  }
+
+  if (lower.includes('not found') || lower.includes('404') || lower.includes('does not exist')) {
+    return 'The conversation could not be found. Please start a new chat.';
+  }
+
+  if (lower.includes('internal') || lower.includes('server error') || lower.includes('500')) {
+    return 'The AI assistant encountered a server error. Please try again later.';
+  }
+
+  if (lower.includes('network') || lower.includes('fetch') || lower.includes('offline') || lower.includes('connection') || lower.includes('dns')) {
+    return 'Unable to reach the server. Please check your internet connection and try again.';
+  }
+
+  // For long technical messages, truncate to a friendly summary
+  if (raw.length > 120) {
+    return 'The assistant is having trouble right now. Please try again in a moment.';
+  }
+
+  return raw;
 }
 
 /* =========================
@@ -79,6 +129,8 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
   error: null,
   pendingInitialMessage: null,
   pendingTripId: null,
+  thinking: false,
+  clearedAt: null,
 
   setPendingMessage: (message, tripId) => {
     console.log('[assistantStore] setPendingMessage called', {
@@ -99,7 +151,6 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
 
   startConversation: (uid, tripId) => {
     const db = getFirebaseFirestore();
-    // Use pendingTripId if set, otherwise use the provided tripId
     const effectiveTripId = get().pendingTripId ?? tripId;
     const conversationId = buildConversationId(uid, effectiveTripId);
 
@@ -126,12 +177,15 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
 
     activeConversationId = conversationId;
 
+    // Don't clear messages here — start with whatever is in state.
+    // Only set loading if messages are empty.
+    const currentMessages = get().messages;
     set({
       conversationId,
       tripId: effectiveTripId,
-      messages: [],
-      loading: true,
+      loading: currentMessages.length === 0,
       error: null,
+      thinking: false,
     });
 
     const msgCol = collection(
@@ -146,32 +200,45 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
     unsubMessages = onSnapshot(
       q,
       (snap) => {
-        const msgs: AssistantMessage[] = snap.docs.map((d) => {
+        const clearedAt = get().clearedAt;
+        let msgs: AssistantMessage[] = snap.docs.map((d) => {
           const data: any = d.data();
           return {
             id: d.id,
             role: data.role === 'assistant' ? 'assistant' : 'user',
-            text: String(data.text ?? ''),
-            createdAt: data.createdAt,
+            text: String(data.text ?? data.content ?? ''),
+            createdAt: data.createdAt ?? data.timestamp,
           };
         });
 
+        // If user cleared the chat, filter out messages created before the clear time
+        if (clearedAt) {
+          msgs = msgs.filter((m) => {
+            if (!m.createdAt) return false;
+            const msgTime = m.createdAt?.toMillis?.() ?? (m.createdAt?.seconds ? m.createdAt.seconds * 1000 : new Date(m.createdAt).getTime());
+            return msgTime > clearedAt;
+          });
+        }
+
         console.log('[assistantStore] messages snapshot received', {
-          count: msgs.length,
+          totalInDb: snap.docs.length,
+          filtered: msgs.length,
+          clearedAt,
           conversationId: get().conversationId,
-          loading: false,
         });
 
         set({
           messages: msgs,
           loading: false,
+          thinking: false,
         });
       },
       (err) => {
         console.error('[assistantStore] snapshot error', err);
         set({
           loading: false,
-          error: err?.message ?? 'Failed to load messages',
+          error: friendlyError(err?.message ?? ''),
+          thinking: false,
         });
       }
     );
@@ -197,7 +264,45 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
       loading: false,
       sending: false,
       error: null,
+      thinking: false,
     });
+  },
+
+  /* =========================
+     RESET CONVERSATION
+     Hides all previous messages from the UI permanently.
+     Messages remain in Firestore but are filtered by clearedAt timestamp.
+  ========================= */
+
+  resetConversation: async (uid) => {
+    console.log('[assistantStore] resetConversation called');
+
+    // Stop current listener
+    if (unsubMessages) {
+      unsubMessages();
+      unsubMessages = null;
+    }
+
+    activeConversationId = null;
+    const currentTripId = get().tripId;
+
+    // Set the cleared timestamp to NOW — all messages before this point
+    // will be filtered out by the snapshot listener
+    const now = Date.now();
+
+    // Clear local state
+    set({
+      conversationId: null,
+      tripId: null,
+      messages: [],
+      loading: false,
+      sending: false,
+      error: null,
+      thinking: false,
+      clearedAt: now,
+    });
+
+    console.log('[assistantStore] resetConversation: clearedAt set to', new Date(now).toISOString());
   },
 
   /* =========================
@@ -211,11 +316,19 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
       return;
     }
 
+    // If no conversation is active, start one
+    if (!get().conversationId) {
+      get().startConversation(uid, tripId);
+      // Small delay for listener to register
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
     console.log('[assistantStore] sendMessage called', {
       textPreview: trimmed.substring(0, 80) + '...',
       uid,
       tripId,
       currentSending: get().sending,
+      conversationId: get().conversationId,
     });
 
     if (get().sending) {
@@ -223,46 +336,88 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
       return;
     }
 
-    set({ sending: true, error: null });
+    set({ sending: true, error: null, thinking: true });
 
     try {
-      const history: AssistantHistoryItem[] = get()
-        .messages.slice(-10)
-        .map((m) => ({
-          role: m.role,
-          text: m.text,
-        }));
+      const conversationId = get().conversationId;
 
       console.log('[assistantStore] calling assistantChat function', {
-        historyLength: history.length,
-        trimmedLength: trimmed.length,
+        conversationId,
+        hasConversationId: !!conversationId,
       });
+
+      if (!conversationId) {
+        throw new Error('No conversation ID available');
+      }
 
       await assistantChat({
         message: trimmed,
         tripId,
-        history,
+        conversationId,
       });
 
       console.log('[assistantStore] assistantChat succeeded');
-      // Firestore listener automatically updates UI — no manual push needed
+
+      // Force-fetch messages after send to ensure UI updates even if snapshot
+      // doesn't fire in time for brand new conversations
+      const convId = conversationId as string;
+      try {
+        const db = getFirebaseFirestore();
+        const msgCol = collection(
+          db,
+          'assistant_conversations',
+          convId,
+          'assistant_messages'
+        );
+        const q = query(msgCol, orderBy('createdAt', 'asc'));
+        const snap = await getDocs(q);
+        const clearedAt = get().clearedAt;
+        let msgs: AssistantMessage[] = snap.docs.map((d) => {
+          const data: any = d.data();
+          return {
+            id: d.id,
+            role: data.role === 'assistant' ? 'assistant' : 'user',
+            text: String(data.text ?? data.content ?? ''),
+            createdAt: data.createdAt ?? data.timestamp,
+          };
+        });
+
+        // Apply clearedAt filter
+        if (clearedAt) {
+          msgs = msgs.filter((m) => {
+            if (!m.createdAt) return false;
+            const msgTime = m.createdAt?.toMillis?.() ?? (m.createdAt?.seconds ? m.createdAt.seconds * 1000 : new Date(m.createdAt).getTime());
+            return msgTime > clearedAt;
+          });
+        }
+
+        if (msgs.length > 0) {
+          console.log('[assistantStore] force-fetched messages after send', {
+            count: msgs.length,
+          });
+          set({ messages: msgs });
+        }
+      } catch (fetchErr) {
+        console.warn('[assistantStore] force-fetch failed (non-critical)', fetchErr);
+      }
     } catch (e: any) {
       console.error('[assistantStore] assistantChat failed', e?.message ?? e);
-      // Surface the error so the UI can show it
-      const msg = e?.message ?? 'Assistant is unavailable right now. Please try again.';
+      const rawMsg = e?.message ?? '';
+      const userFriendly = friendlyError(rawMsg);
       set((state) => ({
-        error: msg,
+        error: userFriendly,
+        thinking: false,
         messages: [
           ...state.messages,
           {
             id: `error_${Date.now()}`,
             role: 'assistant' as const,
-            text: `⚠️ ${msg}`,
+            text: userFriendly,
           },
         ],
       }));
     } finally {
-      set({ sending: false });
+      set({ sending: false, thinking: false });
     }
   },
 }));

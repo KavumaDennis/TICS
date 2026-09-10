@@ -18,6 +18,7 @@ import ScreenBackground from '@/src/components/ScreenBackground';
 import Card from '@/src/components/Card';
 import { syncFromEmail } from '@/src/firebase/callables';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 type EmailSource = 'gmail' | 'outlook';
 
@@ -91,77 +92,77 @@ export default function EmailSyncScreen() {
   };
 
   return (
-    <ScreenBackground variant="slate">
+   
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
-        <ScrollView className="flex-1 px-2 pt-10 pb-10">
+        <ScrollView className="flex-1 p-1 pb-10">
           <View className="p-2 flex-row items-center gap-3  bg-tics-amber/25 border border-tics-amber/10 rounded-full mb-3">
             <Pressable
               onPress={() => router.back()}
               style={{ height: 46, width: 46 }}
               className="h-11 w-11 items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20">
-              <Ionicons name="chevron-back" size={22} color="rgba(248,250,252,0.9)" />
+              <Ionicons name="chevron-back" size={22} color="#fff" />
             </Pressable>
             <Pressable
               style={{ height: 46, width: 46 }}
               className="h-11 w-11 items-center justify-center rounded-full bg-tics-amber/35 border border-tics-amber/20">
               <Ionicons name="mail-open" size={20} color="#fff" />
             </Pressable>
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[17px]">Sync from email</Text>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[17px]">Sync from email</SafeText>
           </View>
 
-          <View>
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-2 text-tics-text text-[13px] leading-5">
+          <View className='px-1'>
+            <Text style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-2 text-tics-text text-[13px] leading-5">
               Paste a travel confirmation email from Gmail or Outlook. TICS will automatically extract your trip details.
             </Text>
           </View>
 
           {/* Source selector */}
-          <View className="mt-5 flex-row p-1 rounded-full border border-[#96C7B3]/50 bg-white/[0.06] overflow-hidden">
+          <View className="mt-5 flex-row p-1 rounded-full border border-tics-amber/30 bg-white/[0.06] overflow-hidden">
             <Pressable
               onPress={() => setSource('gmail')}
-              className={`flex-1 py-3 items-center rounded-full ${source === 'gmail' ? 'bg-tics-green/30' : ''}`}
+              className={`flex-1 py-3 items-center rounded-full ${source === 'gmail' ? 'bg-tics-amber/35' : ''}`}
             >
-              <Ionicons name="mail" size={20} color={source === 'gmail' ? '#22c55e' : 'rgba(248,250,252,0.6)'} />
-              <Text
-                style={{ fontFamily: 'Syne_500Medium' }}
+              <Ionicons name="mail" size={20} color={source === 'gmail' ? '#96C7B3' : 'rgba(248,250,252,0.6)'} />
+              <SafeText
+                style={{ fontFamily: 'ShareTech_400Regular' }}
                 className={`mt-1 text-[12px] ${source === 'gmail' ? 'text-tics-green' : 'text-tics-muted'}`}
               >
                 Gmail
-              </Text>
+              </SafeText>
             </Pressable>
             <Pressable
               onPress={() => setSource('outlook')}
-              className={`flex-1 py-3 items-center rounded-full ${source === 'outlook' ? 'bg-blue-500/30' : ''}`}
+              className={`flex-1 py-3 items-center rounded-full ${source === 'outlook' ? 'bg-tics-amber/35' : ''}`}
             >
-              <Ionicons name="mail-open" size={20} color={source === 'outlook' ? '#3b82f6' : 'rgba(248,250,252,0.6)'} />
-              <Text
-                style={{ fontFamily: 'Syne_500Medium' }}
+              <Ionicons name="mail-open" size={20} color={source === 'outlook' ? '#96C7B3' : 'rgba(248,250,252,0.6)'} />
+              <SafeText
+                style={{ fontFamily: 'ShareTech_400Regular' }}
                 className={`mt-1 text-[12px] ${source === 'outlook' ? 'text-blue-400' : 'text-tics-muted'}`}
               >
                 Outlook
-              </Text>
+              </SafeText>
             </Pressable>
           </View>
 
           {/* Subject input */}
           <View className="mt-5">
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] uppercase ml-2 mb-1">Email Subject</Text>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[10px] uppercase ml-2 mb-1">Email Subject</SafeText>
             <TextInput
               value={subject}
               onChangeText={setSubject}
               placeholder="Paste the email subject line here..."
               placeholderTextColor="rgba(248,250,252,0.35)"
-              className="border border-[#96C7B3]/50 bg-white/[0.06] rounded-full px-3 py-5 text-tics-text text-[14px]"
-              style={{ fontFamily: 'Syne_500Medium' }}
+              className="border border-tics-amber/30 bg-white/[0.06] rounded-full px-3 py-5 text-tics-text text-[14px]"
+              style={{ fontFamily: 'ShareTech_400Regular' }}
             />
           </View>
 
           {/* Body input */}
           <View className="mt-4">
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[10px] uppercase ml-2 mb-2">Email Body</Text>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[10px] uppercase ml-2 mb-2">Email Body</SafeText>
             <TextInput
               value={body}
               onChangeText={setBody}
@@ -170,8 +171,8 @@ export default function EmailSyncScreen() {
               multiline
               numberOfLines={10}
               textAlignVertical="top"
-              className="border border-[#96C7B3]/50 bg-white/[0.06] rounded-4xl px-4 py-4 text-tics-text text-[14px] min-h-[200px]"
-              style={{ fontFamily: 'Syne_500Medium' }}
+              className="border border-tics-amber/30 bg-white/[0.06] rounded-4xl px-4 py-4 text-tics-text text-[14px] min-h-[200px]"
+              style={{ fontFamily: 'ShareTech_400Regular' }}
             />
           </View>
 
@@ -180,8 +181,8 @@ export default function EmailSyncScreen() {
             <View className="flex-row items-start">
               <Ionicons name="information-circle" size={18} color="#F59E0B" style={{ marginTop: 2 }} />
               <View className="ml-3 flex-1">
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[12px] font-semibold">How to get email content</Text>
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-1 text-tics-muted text-[11px] leading-4">
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[12px] font-semibold">How to get email content</SafeText>
+                <Text style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-1 text-tics-muted text-[11px] leading-4">
                   Open the travel confirmation email in Gmail or Outlook, select "Copy" or "Show original", and paste the full content above.
                 </Text>
               </View>
@@ -198,7 +199,7 @@ export default function EmailSyncScreen() {
               <ActivityIndicator color="#22c55e" />
             ) : (
               <View className="flex-row items-center">
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="ml-2 text-tics-text text-[15px]">Parse & Sync Trip</Text>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="ml-2 text-tics-text text-[15px]">Parse & Sync Trip</SafeText>
               </View>
             )}
           </Pressable>
@@ -208,29 +209,29 @@ export default function EmailSyncScreen() {
             <Card accent="green" className="mt-5 bg-tics-green/10 border border-tics-green/30 rounded-xl px-4 py-4">
               <View className="flex-row items-center mb-3">
                 <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="ml-2 text-tics-text text-[16px]">Trip Synced!</Text>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="ml-2 text-tics-text text-[16px]">Trip Synced!</SafeText>
               </View>
               <View className="gap-2">
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[14px]">{parsedResult.title}</Text>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[14px]">{parsedResult.title}</SafeText>
                 <View className="flex-row">
-                  <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] w-20">Route:</Text>
-                  <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[12px]">{parsedResult.from} → {parsedResult.to}</Text>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px] w-20">Route:</SafeText>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[12px]">{parsedResult.from} → {parsedResult.to}</SafeText>
                 </View>
                 {parsedResult.airline && (
                   <View className="flex-row">
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] w-20">Airline:</Text>
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[12px]">{parsedResult.airline}</Text>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px] w-20">Airline:</SafeText>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[12px]">{parsedResult.airline}</SafeText>
                   </View>
                 )}
                 {parsedResult.flightNumber && (
                   <View className="flex-row">
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] w-20">Flight:</Text>
-                    <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[12px]">{parsedResult.flightNumber}</Text>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px] w-20">Flight:</SafeText>
+                    <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[12px]">{parsedResult.flightNumber}</SafeText>
                   </View>
                 )}
                 <View className="flex-row">
-                  <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[12px] w-20">Departs:</Text>
-                  <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[12px]">{new Date(parsedResult.departureTime).toLocaleString()}</Text>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[12px] w-20">Departs:</SafeText>
+                  <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[12px]">{new Date(parsedResult.departureTime).toLocaleString()}</SafeText>
                 </View>
               </View>
 
@@ -238,12 +239,12 @@ export default function EmailSyncScreen() {
                 onPress={handleDone}
                 className="mt-4 bg-tics-green/20 border border-tics-green/40 rounded-xl py-3 items-center"
               >
-                <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-green text-[14px]">Done — Back to trips</Text>
+                <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-green text-[14px]">Done — Back to trips</SafeText>
               </Pressable>
             </Card>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </ScreenBackground>
+    
   );
 }

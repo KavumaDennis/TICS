@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Text, View } from 'react-native';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 type Step = {
   label: string;
@@ -50,7 +51,7 @@ export default function ProgressTracker({ steps }: ProgressTrackerProps) {
                   />
                 ) : null}
               </View>
-              <Text className="mt-2 text-[11px] text-tics-muted">{s.label}</Text>
+              <SafeText className="mt-2 text-[11px] text-tics-muted">{s.label}</SafeText>
             </View>
           );
         })}

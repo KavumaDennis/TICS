@@ -22,6 +22,7 @@ import Card from '@/src/components/Card';
 import PersistentTabBar from '@/src/components/PersistentTabBar';
 import { useMobilityStore } from '@/src/store/mobilityStore';
 import { useTripStore } from '@/src/store/tripStore';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 type LatLng = { latitude: number; longitude: number };
 
@@ -279,13 +280,13 @@ export default function MapScreen() {
           </View>
         </View>
         <View>
-          <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-text text-[16px]">
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[16px]">
             Route
-          </Text>
+          </SafeText>
           {trip && (
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[11px]">
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[11px]">
               {trip.from} → {trip.to}
-            </Text>
+            </SafeText>
           )}
         </View>
       </View>
@@ -295,9 +296,9 @@ export default function MapScreen() {
           {Platform.OS === 'web' || !MapView ? (
             <View className="flex-1 items-center justify-center bg-[#1E293B]">
               <Ionicons name="map-outline" size={48} color="rgba(248,250,252,0.2)" />
-              <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[14px] text-center px-4 mt-4">
+              <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[14px] text-center px-4 mt-4">
                 Map view is not available on web. Use a mobile device to see the route.
-              </Text>
+              </SafeText>
             </View>
           ) : (
             <MapView style={{ flex: 1 }} initialRegion={initialRegion}>
@@ -341,14 +342,14 @@ export default function MapScreen() {
         <Card className="mt-10 py-6">
           <View className="items-center">
             <Ionicons name="navigate-outline" size={40} color="rgba(248,250,252,0.2)" />
-            <Text style={{ fontFamily: 'Syne_700Bold' }} className="text-tics-text text-[14px] mt-4">
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[14px] mt-4">
               No route data yet
-            </Text>
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="mt-2 text-tics-muted text-[12px] leading-5 text-center px-4">
+            </SafeText>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="mt-2 text-tics-muted text-[12px] leading-5 text-center px-4">
               {trip
                 ? `Route from ${trip.from} to ${trip.to} will appear here once coordinates are available. Try creating a new trip with the airport selector for automatic route mapping.`
                 : 'This view shows the flight path or ground transport route for your trip.'}
-            </Text>
+            </SafeText>
           </View>
         </Card>
       )}
@@ -358,13 +359,13 @@ export default function MapScreen() {
         <View className="mt-3 mb-4 flex-row items-center gap-3 bg-tics-amber/35 border border-tics-amber/20 rounded-full px-4 py-4">
           <Ionicons name={hasGroundRoute ? 'car' : 'airplane'} size={18} color="#3B82F6" />
           <View className="flex-1">
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-text text-[12px]">
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-text text-[12px]">
               {trip.from} → {trip.to}
-            </Text>
-            <Text style={{ fontFamily: 'Syne_500Medium' }} className="text-tics-muted text-[10px]">
+            </SafeText>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular' }} className="text-tics-muted text-[10px]">
               {hasGroundRoute ? 'Ground transport route' : 'Flight path (great circle)'}
               {trip.flightNumber ? ` · ${trip.flightNumber}` : ''}
-            </Text>
+            </SafeText>
           </View>
         </View>
       )}

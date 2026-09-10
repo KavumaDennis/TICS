@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import ScreenBackground from '@/src/components/ScreenBackground';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 export default function RideCompleteScreen() {
   const router = useRouter();
@@ -22,12 +23,12 @@ export default function RideCompleteScreen() {
           <Ionicons name="checkmark-circle" size={56} color="#22C55E" />
         </View>
 
-        <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 24, textAlign: 'center' }}>
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 24, textAlign: 'center' }}>
           Ride Complete!
-        </Text>
-        <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 14, textAlign: 'center', marginTop: 12, lineHeight: 22 }}>
+        </SafeText>
+        <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 14, textAlign: 'center', marginTop: 12, lineHeight: 22 }}>
           Your last-mile ride has been completed successfully.{'\n'}Thank you for using TICS.
-        </Text>
+        </SafeText>
 
         {/* Trip details summary */}
         <LinearGradient
@@ -35,12 +36,12 @@ export default function RideCompleteScreen() {
           style={{ width: '100%', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)', padding: 20, marginTop: 32, alignItems: 'center' }}
         >
           <Ionicons name="car" size={24} color="#22C55E" />
-          <Text style={{ fontFamily: 'Syne_600SemiBold', color: '#22C55E', fontSize: 14, marginTop: 8 }}>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#22C55E', fontSize: 14, marginTop: 8 }}>
             Last Mile Completed
-          </Text>
-          <Text style={{ fontFamily: 'Syne_500Medium', color: '#94a3b8', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+          </SafeText>
+          <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#94a3b8', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
             Your driver has dropped you off at your destination.
-          </Text>
+          </SafeText>
         </LinearGradient>
 
         {/* Action buttons */}
@@ -49,18 +50,18 @@ export default function RideCompleteScreen() {
             onPress={() => router.replace({ pathname: `/trips/${tripId}` } as any)}
             style={{ borderRadius: 24, backgroundColor: '#22C55E', padding: 18, alignItems: 'center' }}
           >
-            <Text style={{ fontFamily: 'Syne_700Bold', color: '#fff', fontSize: 15 }}>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#fff', fontSize: 15 }}>
               View Trip Details
-            </Text>
+            </SafeText>
           </Pressable>
 
           <Pressable
             onPress={() => router.replace('/home')}
             style={{ borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', padding: 18, alignItems: 'center' }}
           >
-            <Text style={{ fontFamily: 'Syne_700Bold', color: '#f8fafc', fontSize: 15 }}>
+            <SafeText style={{ fontFamily: 'ShareTech_400Regular', color: '#f8fafc', fontSize: 15 }}>
               Back to Home
-            </Text>
+            </SafeText>
           </Pressable>
         </View>
       </View>

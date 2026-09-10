@@ -21,12 +21,20 @@ export type AirportData = {
   airportName: string;
   city: string;
   countryCode: string;
+  /** ICAO / GPS code (e.g. "HUEN") */
+  icao?: string;
+  /** Latitude in decimal degrees */
+  latitude?: number;
+  /** Longitude in decimal degrees */
+  longitude?: number;
 };
 
 export type Trip = {
   id: string;
   userId: string;
   title: string;
+  /** Trip type classification: LOCAL, REGIONAL, or INTERNATIONAL */
+  type?: 'LOCAL' | 'REGIONAL' | 'INTERNATIONAL';
   status?: 'upcoming' | 'boarding' | 'active' | 'airborne' | 'arriving' | 'completed' | 'canceled' | 'delayed';
   /** When the trip was marked completed */
   completedAt?: string | null;

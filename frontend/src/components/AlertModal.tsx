@@ -35,22 +35,22 @@ export default function AlertModal({
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onDismiss}>
       <View className="flex-1 bg-black/60 items-center justify-center px-2">
-        <View className="w-full bg-tics-bg2 rounded-3xl p-6 border border-[#96C7B3]/50">
+        <View className="w-full bg-tics-bg2 rounded-4xl p-6 border border-[#96C7B3]/30">
           {/* Title */}
-          <Text
-            style={{ fontFamily: 'Syne_700Bold' }}
+          <SafeText
+            style={{ fontFamily: 'ShareTech_400Regular' }}
             className="text-tics-text text-[18px] mb-2 text-center"
           >
             {title}
-          </Text>
+          </SafeText>
 
           {/* Message */}
-          <Text
-            style={{ fontFamily: 'Syne_500Medium' }}
+          <SafeText
+            style={{ fontFamily: 'ShareTech_400Regular' }}
             className="text-tics-muted text-[13px] text-center leading-5 mb-6"
           >
             {message}
-          </Text>
+          </SafeText>
 
           {/* Primary action */}
           {primaryButton && (
@@ -59,14 +59,14 @@ export default function AlertModal({
                 primaryButton.onPress?.();
                 onDismiss?.();
               }}
-              className="bg-tics-amber rounded-xl py-4 mb-3"
+              className="bg-tics-amber rounded-full py-6 mb-3"
             >
-              <Text
-                style={{ fontFamily: 'Syne_700Bold' }}
+              <SafeText
+                style={{ fontFamily: 'ShareTech_400Regular' }}
                 className="text-center text-[#05210f] text-[14px]"
               >
                 {primaryButton.text}
-              </Text>
+              </SafeText>
             </Pressable>
           )}
 
@@ -79,12 +79,12 @@ export default function AlertModal({
               }}
               className="py-6 bg-tics-red rounded-full border border-tics-red/20"
             >
-              <Text
-                style={{ fontFamily: 'Syne_500Medium' }}
+              <SafeText
+                style={{ fontFamily: 'ShareTech_400Regular' }}
                 className="text-center text-black text-[14px]"
               >
                 {destructiveButton.text}
-              </Text>
+              </SafeText>
             </Pressable>
           )}
 
@@ -98,12 +98,12 @@ export default function AlertModal({
               }}
               className="border border-[#96C7B3]/50 bg-white/[0.05] rounded-xl py-4 mb-3"
             >
-              <Text
-                style={{ fontFamily: 'Syne_500Medium' }}
+              <SafeText
+                style={{ fontFamily: 'ShareTech_400Regular' }}
                 className="text-center text-tics-text text-[14px]"
               >
                 {btn.text}
-              </Text>
+              </SafeText>
             </Pressable>
           ))}
 
@@ -116,12 +116,12 @@ export default function AlertModal({
               }}
               className="py-4 rounded-xl border border-[#96C7B3]/50 bg-white/[0.05]"
             >
-              <Text
-                style={{ fontFamily: 'Syne_500Medium' }}
+              <SafeText
+                style={{ fontFamily: 'ShareTech_400Regular' }}
                 className="text-center text-tics-text text-[14px]"
               >
                 {cancelButton.text}
-              </Text>
+              </SafeText>
             </Pressable>
           )}
 
@@ -134,12 +134,12 @@ export default function AlertModal({
               }}
               className="bg-tics-amber rounded-xl py-4"
             >
-              <Text
-                style={{ fontFamily: 'Syne_700Bold' }}
+              <SafeText
+                style={{ fontFamily: 'ShareTech_400Regular' }}
                 className="text-center text-[#05210f] text-[14px]"
               >
                 {buttons[0].text}
-              </Text>
+              </SafeText>
             </Pressable>
           )}
         </View>
@@ -152,6 +152,7 @@ export default function AlertModal({
  * Hook to manage AlertModal state easily.
  */
 import { useCallback, useState } from 'react';
+import { SafeText } from '@/src/components/responsive/SafeText';
 
 export function useAlertModal() {
   const [visible, setVisible] = useState(false);

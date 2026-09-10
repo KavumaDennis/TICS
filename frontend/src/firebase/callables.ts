@@ -27,6 +27,7 @@ export type DestinationContext = {
 export async function assistantChat(input: {
   message: string;
   tripId?: string | null;
+  conversationId?: string | null;
   history?: AssistantHistoryItem[];
   /** Prompt instruction prefix, e.g. "Analyze this alert for the user" */
   instruction?: string;

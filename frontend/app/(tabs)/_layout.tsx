@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Ionicons, Fontisto, Feather, MaterialCommunityIcons  } from '@expo/vector-icons';
+import { Ionicons, Fontisto, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -17,6 +17,7 @@ export default function TabsLayout() {
       tabBar={() => <PersistentTabBar />}
       screenOptions={{
         headerShown: false,
+        animation: "fade",
       }}
     >
       <Tabs.Screen
@@ -44,7 +45,7 @@ export default function TabsLayout() {
           title: 'Assistant',
           tabBarIcon: ({ focused, color }) => (
 
-            <MaterialCommunityIcons  style={{ marginTop: -8 }} name="google-assistant" size={24} color={color} />
+            <MaterialCommunityIcons style={{ marginTop: -8 }} name="google-assistant" size={24} color={color} />
 
           ),
         }}

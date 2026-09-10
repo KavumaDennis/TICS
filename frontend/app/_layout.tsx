@@ -11,19 +11,20 @@
  *  • Cleanup runs when auth state changes (logout).
  */
 import { useEffect, useRef } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
+import { queryClient } from '@/src/modules/explore/utils/queryClient';
 import { StatusBar } from 'expo-status-bar';
+import { View, Text, ActivityIndicator, Platform } from "react-native";
+import * as NavigationBar from "expo-navigation-bar";
 import 'react-native-reanimated';
 import '../src/nativewind';
 import '../src/styles/global.css';
 import {
   useFonts,
-  Syne_400Regular,
-  Syne_500Medium,
-  Syne_600SemiBold,
-  Syne_700Bold,
-} from '@expo-google-fonts/syne';
+  ShareTech_400Regular,
+} from '@expo-google-fonts/share-tech';
 
 import { darkNavTheme } from '@/src/constants/theme';
 import { usePushNotifications } from '@/src/hooks/usePushNotifications';
@@ -39,16 +40,13 @@ import { useMobilityStore } from '@/src/store/mobilityStore';
 import { useSaveStore } from '@/src/store/saveStore';
 import { useRatingStore } from '@/src/store/ratingStore';
 import { useTransportStore } from '@/src/store/transportStore';
+import AIHubTab from '@/src/components/AIHubButton';
+import AIHubBottomSheet from '@/src/components/AIHubBottomSheet';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    Syne_400Regular,
-    Syne_500Medium,
-    Syne_600SemiBold,
-    Syne_700Bold,
+    ShareTech_400Regular,
   });
-
-  usePushNotifications();
 
   const hydrate = useAuthStore((s) => s.hydrate);
   const hydrated = useAuthStore((s) => s.hydrated);
@@ -87,9 +85,41 @@ export default function RootLayout() {
   // Track which tripIds have active per-trip listeners
   const activeTripListeners = useRef<Set<string>>(new Set());
 
+
+  usePushNotifications();
+
   // Hydrate on mount
   useEffect(() => { hydrate(); }, [hydrate]);
   useEffect(() => { appHydrate(); }, [appHydrate]);
+
+  //Hide na d show status bar on android for immersive mode
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+
+    async function enableImmersiveMode() {
+      try {
+        await NavigationBar.setVisibilityAsync("hidden");
+        await NavigationBar.setBehaviorAsync("overlay-swipe");
+        await NavigationBar.setBackgroundColorAsync("#00000000");
+      } catch (e) {
+        console.log("NavigationBar:", e);
+      }
+    }
+
+    enableImmersiveMode();
+  }, []);
+
+  // Safety net – force hydration to complete after 15 seconds no matter what.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!hydrated || !appHydrated) {
+        console.warn("[ROOT] Forcing hydration complete after timeout");
+        if (!hydrated) useAuthStore.setState({ hydrated: true });
+        if (!appHydrated) useAppStore.setState({ hydrated: true });
+      }
+    }, 15_000);
+    return () => clearTimeout(t);
+  }, [hydrated, appHydrated]);
 
   // Auth-level listeners (start/stop on uid change)
   useEffect(() => {
@@ -114,7 +144,7 @@ export default function RootLayout() {
     startUserAlertsListener(uid);
     startUserDoc(uid);
     startSaved(uid);
-    loadRatings(uid).catch(() => {});
+    loadRatings(uid).catch(() => { });
 
     return () => {
       stopTripsListener();
@@ -160,14 +190,26 @@ export default function RootLayout() {
     });
   }, [trips, uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!fontsLoaded || !hydrated || !appHydrated) return null;
+
+  console.log("fontsLoaded:", fontsLoaded);
+  console.log("hydrated:", hydrated);
+  console.log("appHydrated:", appHydrated);
+
+  if (!fontsLoaded || !hydrated || !appHydrated) {
+    return null;
+  };
+
+
 
   return (
+    <QueryClientProvider client={queryClient}>
     <ThemeProvider value={darkNavTheme}>
       <Stack
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: darkNavTheme.colors.background },
+          animation: "fade",
+          animationDuration: 4000,
         }}
       >
         <Stack.Screen name="index" />
@@ -188,10 +230,27 @@ export default function RootLayout() {
         <Stack.Screen name="saved" />
         <Stack.Screen name="last-mile/[tripId]" />
         <Stack.Screen name="last-mile/tracking" />
+        <Stack.Screen name="last-mile/operator-details" />
         <Stack.Screen name="last-mile/destination-select" />
         <Stack.Screen name="last-mile/ride-complete" />
+        <Stack.Screen name="operator/select" />
+        <Stack.Screen name="operator/recovery-trip/[tripId]" />
+        <Stack.Screen name="explore" />
+        <Stack.Screen name="explore/search" />
+        <Stack.Screen name="explore/category/[id]" />
+        <Stack.Screen name="explore/destination/[id]" />
+        <Stack.Screen name="explore/event/[id]" />
+        <Stack.Screen name="explore/journey-feed" />
+        <Stack.Screen name="explore/nearby" />
+        <Stack.Screen name="explore/weekend-escapes" />
+        <Stack.Screen name="explore/events" />
+        <Stack.Screen name="explore/discovery" />
       </Stack>
-      <StatusBar style="light" />
+      <StatusBar hidden />
+      {/* Global AI Hub elements */}
+      <AIHubTab />
+      <AIHubBottomSheet />
     </ThemeProvider>
+    </QueryClientProvider>
   );
 }
