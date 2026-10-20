@@ -5,7 +5,17 @@ export interface OperatorUser {
   role: 'operator' | 'admin';
   lodgeName?: string;
   country?: string;
+  // Optional operator profile fields, editable via OperatorProfilePage and
+  // stored on the operator's Firestore record (users/{uid}, synced to operators/{uid}).
+  // Optional because registration does not set them and existing records may lack them.
+  logoUrl?: string;
+  description?: string;
+  location?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  availableDrivers?: number;
   createdAt?: any;
+  updatedAt?: any;
 }
 
 export interface TripDoc {

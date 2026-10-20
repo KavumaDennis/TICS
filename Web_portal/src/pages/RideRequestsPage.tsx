@@ -39,7 +39,7 @@ export default function RideRequestsPage() {
   const navigate = useNavigate();
   const [requests, setRequests] = useState<RideRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [drivers, setDrivers] = useState<DriverDoc[]>([]);
+  const [drivers, setDrivers] = useState<(DriverDoc & { id: string })[]>([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<RideRequest | null>(null);
   const [assigning, setAssigning] = useState(false);
@@ -70,7 +70,7 @@ export default function RideRequestsPage() {
     const driversUnsub = onSnapshot(
       query(collection(db, 'drivers'), where('operatorId', '==', operator.uid), where('active', '==', true)),
       (snap) => {
-        setDrivers(snap.docs.map(d => ({ id: d.id, ...d.data() as any })));
+        setDrivers(snap.docs.map(d => ({ ...d.data() as DriverDoc, id: d.id })));
       }
     );
 
